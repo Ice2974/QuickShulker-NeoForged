@@ -1,0 +1,56 @@
+# Gradle
+
+.gradle/
+.gradle-home/
+**/build/
+out/
+classes/
+publish/
+gradle/wrapper/gradle-*-bin/
+
+# Minecraft
+
+.minecraft/
+run/
+runs/
+**/run/
+**/runs/
+logs/
+crash-reports/
+hs_err_pid*
+replay_pid*
+
+# Java
+
+*.class
+*.war
+*.ear
+
+# IDE
+
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.code-workspace
+bin/
+
+# Git
+
+.shelf/
+
+# Temporary files
+
+.tmp/
+*.tmp
+*.bak
+*.old
+*.orig
+*.log
+
+# Local references
+
+references/
