@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 
 @Mod.EventBusSubscriber(modid = QuickShulkerConstants.MOD_ID)
 public final class ForgeQuickShulkerEvents {
@@ -15,6 +16,13 @@ public final class ForgeQuickShulkerEvents {
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer serverPlayer) {
             ForgeServices.SHULKER_SESSIONS.tick(serverPlayer);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            ForgeServices.SHULKER_SESSIONS.finishSessionOnDisconnect(serverPlayer);
         }
     }
 }

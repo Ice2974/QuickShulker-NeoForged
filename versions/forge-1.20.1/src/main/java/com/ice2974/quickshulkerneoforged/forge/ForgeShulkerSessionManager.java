@@ -61,7 +61,11 @@ public final class ForgeShulkerSessionManager {
 
     public void tick(ServerPlayer player) {
         ActiveSession session = sessions.get(player.getUUID());
-        if (session == null || player.containerMenu != session.menu()) {
+        if (session == null) {
+            return;
+        }
+        if (player.containerMenu != session.menu()) {
+            finishSession(player, null, CloseReason.PLAYER_CLOSED);
             return;
         }
         HostValidationResult validation = validateCurrentHost(player, session.hostItem());
@@ -74,9 +78,19 @@ public final class ForgeShulkerSessionManager {
     }
 
     public void finishSession(ServerPlayer player, ForgeShulkerMenu menu) {
+        finishSession(player, menu, CloseReason.PLAYER_CLOSED);
+    }
+
+    public void finishSession(ServerPlayer player, ForgeShulkerMenu menu, CloseReason closeReason) {
         ActiveSession session = sessions.remove(player.getUUID());
-        if (session == null || session.menu() != menu) {
+        if (session == null) {
             return;
+        }
+        if (menu != null && session.menu() != menu) {
+            return;
+        }
+        if (closeReason != null && session.closeReason() != closeReason) {
+            session = session.withCloseReason(closeReason);
         }
 
         HostValidationResult validation = validateCurrentHost(player, session.hostItem());
@@ -97,6 +111,10 @@ public final class ForgeShulkerSessionManager {
         } else {
             LOGGER.debug("Discarded quick shulker changes: {}", disposition);
         }
+    }
+
+    public void finishSessionOnDisconnect(ServerPlayer player) {
+        finishSession(player, null, CloseReason.PLAYER_DISCONNECTED);
     }
 
     public HostValidationResult validateCurrentHost(ServerPlayer player, HostItemReference hostItemReference) {
