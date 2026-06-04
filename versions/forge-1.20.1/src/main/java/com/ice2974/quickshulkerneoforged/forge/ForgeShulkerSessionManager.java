@@ -27,6 +27,17 @@ public final class ForgeShulkerSessionManager {
     private final Map<UUID, ActiveSession> sessions = new ConcurrentHashMap<>();
 
     public void open(ServerPlayer player, HostItemReference hostItemReference) {
+        ActiveSession existingSession = sessions.get(player.getUUID());
+        if (existingSession != null) {
+            LOGGER.debug(
+                "Rejected quick shulker open because an active session already exists: player={}, requestedHostSlot={}, activeHostSlot={}",
+                player.getScoreboardName(),
+                hostItemReference.slotRef(),
+                existingSession.hostItem().slotRef()
+            );
+            return;
+        }
+
         ItemStack hostStack = ForgeHostSlotResolver.resolve(player, hostItemReference.slotRef());
         ItemBackedShulkerContainer container = new ItemBackedShulkerContainer(contentAccess, hostStack);
         OpenSession openSession = OpenSession.create(

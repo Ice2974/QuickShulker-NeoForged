@@ -9,6 +9,7 @@ import com.ice2974.quickshulkerneoforged.forge.ForgeHostSlotResolver;
 import com.ice2974.quickshulkerneoforged.forge.ForgeItemSnapshots;
 import com.ice2974.quickshulkerneoforged.forge.ForgeQuickOpenRegistry;
 import com.ice2974.quickshulkerneoforged.forge.ForgeQuickShulkerConfig;
+import com.ice2974.quickshulkerneoforged.forge.ForgeShulkerMenu;
 import com.ice2974.quickshulkerneoforged.forge.network.ForgeOpenHostItemPacket;
 import com.ice2974.quickshulkerneoforged.forge.network.ForgeQuickShulkerNetwork;
 import net.minecraft.client.gui.screens.Screen;
@@ -105,6 +106,9 @@ public final class ForgeQuickShulkerClient {
 
     private static boolean trySendHovered(Player player, Screen screen, QuickOpenTrigger trigger) {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
+            return false;
+        }
+        if (containerScreen.getMenu() instanceof ForgeShulkerMenu) {
             return false;
         }
         if (!containerScreen.getMenu().getCarried().isEmpty()) {

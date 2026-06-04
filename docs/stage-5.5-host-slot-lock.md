@@ -19,12 +19,22 @@
 
 因此，这不是“关闭保存逻辑”的回归，而是“菜单没有锁住宿主槽位”导致的前置数据安全漏洞。
 
+阶段 5.5 继续补上了另一个同类问题：
+
+- 当玩家通过右键打开 QuickShulker 潜影盒菜单后，再次右键当前打开的宿主盒子，客户端仍会在 `ScreenEvent.MouseButtonPressed.Pre` 中继续走 `trySendHovered(...)`。
+- 这会再次向服务端发送新的 `OpenHostItemIntent`。
+- 服务端 `ForgeShulkerSessionManager.open(...)` / `NeoForgeShulkerSessionManager.open(...)` 在补丁前没有 active session 防重入保护。
+- 结果就是同一个宿主会被重复打开成多个 `ItemBackedShulkerContainer` 副本，页面内容彼此不互通，最终关闭时只会以最后关闭页面的内容写回宿主。
+
+这确认属于重复 open / active session 重入问题。
+
 ## 修复策略
 
 修复方向对齐 MoRanpcy/quickshulker 的原作行为：
 
 - 打开中的宿主潜影盒在当前菜单里视为锁定槽位。
 - 当前菜单不允许玩家主动拿起、移动、交换、丢弃、双击收集或拖拽命中该宿主。
+- 当前 QuickShulker 菜单内不允许再次发送新的 open 请求。
 - 菜单不再因为玩家点击宿主而关闭。
 - 宿主若被外部原因移走、替换或数量变化，仍维持当前保守策略：
   - 关闭菜单。
@@ -57,6 +67,8 @@ Forge 当前拦截点：
 - `canTakeItemForPickAll(ItemStack stack, Slot slot)`
 - `canDragTo(Slot slot)`
 - `quickMoveStack(Player player, int index)`
+- `ForgeQuickShulkerClient.trySendHovered(...)`
+- `ForgeShulkerSessionManager.open(...)`
 
 Forge 当前直接拒绝的操作类型：
 
@@ -74,6 +86,8 @@ Forge 当前直接拒绝的操作类型：
 - 当玩家尝试用数字键把其他槽位和“锁定宿主热栏位”交换时，`SWAP` 也会被直接拒绝。
 - `PICKUP_ALL` 的双击收集路径额外通过 `canTakeItemForPickAll(...)` 阻止把宿主纳入收集目标。
 - `QUICK_CRAFT` 的拖拽路径额外通过 `canDragTo(...)` 阻止拖拽分发命中宿主槽位。
+- 当当前菜单已经是 `ForgeShulkerMenu` 时，客户端不再发送新的 `OpenHostItemIntent`。
+- 当玩家已经存在 active session 时，服务端 `open(...)` 直接拒绝新请求，不创建新的 `ItemBackedShulkerContainer`，不调用 `player.openMenu(...)`，也不覆盖既有 session。
 
 ## NeoForge 1.21.1 实现
 
@@ -95,6 +109,8 @@ NeoForge 当前拦截点：
 - `canTakeItemForPickAll(ItemStack stack, Slot slot)`
 - `canDragTo(Slot slot)`
 - `quickMoveStack(Player player, int index)`
+- `NeoForgeQuickShulkerClient.trySendHovered(...)`
+- `NeoForgeShulkerSessionManager.open(...)`
 
 NeoForge 当前直接拒绝的操作类型：
 
@@ -105,6 +121,11 @@ NeoForge 当前直接拒绝的操作类型：
 - `CLONE`
 - `PICKUP_ALL`
 - `QUICK_CRAFT`
+
+NeoForge 当前也额外加入了重复打开保护：
+
+- 当当前菜单已经是 `NeoForgeShulkerMenu` 时，客户端不再发送新的 `OpenHostItemIntent`。
+- 当玩家已经存在 active session 时，服务端 `open(...)` 直接拒绝新请求，不创建新的 `ItemBackedShulkerContainer`，不调用 `player.openMenu(...)`，也不覆盖既有 session。
 
 ## 与阶段 4 / 5 关闭保存逻辑的关系
 
@@ -144,6 +165,8 @@ NeoForge 当前直接拒绝的操作类型：
 7. 正常 `Esc` 关闭后内容保存。
 8. 正常 `E` 关闭后内容保存。
 9. 副手打开场景至少确认无复制、无崩溃、保存正常。
+10. 右键打开潜影盒后，再次右键当前打开的宿主盒子，应无反应，不打开第二个页面。
+11. 多次右键宿主盒子，不应出现两个不同内容的页面来回切换。
 
 ### NeoForge 1.21.1
 
@@ -156,6 +179,8 @@ NeoForge 当前直接拒绝的操作类型：
 7. 正常 `Esc` 关闭后内容保存。
 8. 正常 `E` 关闭后内容保存。
 9. 副手打开场景至少确认无复制、无崩溃、保存正常。
+10. 右键打开潜影盒后，再次右键当前打开的宿主盒子，应无反应，不打开第二个页面。
+11. 多次右键宿主盒子，不应出现两个不同内容的页面来回切换。
 
 ## 待人工确认项
 
