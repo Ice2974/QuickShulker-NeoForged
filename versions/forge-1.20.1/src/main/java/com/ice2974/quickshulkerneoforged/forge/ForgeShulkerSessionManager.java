@@ -7,7 +7,6 @@ import com.ice2974.quickshulkerneoforged.common.open.HostValidationResult;
 import com.ice2974.quickshulkerneoforged.common.session.CloseReason;
 import com.ice2974.quickshulkerneoforged.common.session.MenuOpenIntent;
 import com.ice2974.quickshulkerneoforged.common.session.OpenSession;
-import com.ice2974.quickshulkerneoforged.common.session.OpenSessionRules;
 import com.ice2974.quickshulkerneoforged.common.session.OpenSessionSafetyPolicy;
 import com.ice2974.quickshulkerneoforged.common.session.SaveDisposition;
 import java.util.Map;
@@ -65,7 +64,7 @@ public final class ForgeShulkerSessionManager {
             return;
         }
         if (player.containerMenu != session.menu()) {
-            finishSession(player, null, CloseReason.PLAYER_CLOSED);
+            finishSession(player, null, CloseReason.PLAYER_CLOSED, "tick_menu_mismatch");
             return;
         }
         HostValidationResult validation = validateCurrentHost(player, session.hostItem());
@@ -78,43 +77,56 @@ public final class ForgeShulkerSessionManager {
     }
 
     public void finishSession(ServerPlayer player, ForgeShulkerMenu menu) {
-        finishSession(player, menu, CloseReason.PLAYER_CLOSED);
+        finishSession(player, menu, CloseReason.PLAYER_CLOSED, "menu_removed");
     }
 
     public void finishSession(ServerPlayer player, ForgeShulkerMenu menu, CloseReason closeReason) {
-        ActiveSession session = sessions.remove(player.getUUID());
+        finishSession(player, menu, closeReason, "unspecified");
+    }
+
+    public void finishSession(ServerPlayer player, ForgeShulkerMenu menu, CloseReason closeReason, String source) {
+        ActiveSession session = sessions.get(player.getUUID());
         if (session == null) {
             return;
         }
         if (menu != null && session.menu() != menu) {
             return;
         }
+        sessions.remove(player.getUUID(), session);
         if (closeReason != null && session.closeReason() != closeReason) {
             session = session.withCloseReason(closeReason);
         }
 
         HostValidationResult validation = validateCurrentHost(player, session.hostItem());
-        if (!validation.valid() && session.closeReason() == CloseReason.PLAYER_CLOSED) {
+        if (!validation.valid() && isNormalCloseReason(session.closeReason())) {
             session = session.withCloseReason(CloseReason.HOST_INVALIDATED);
         }
 
         OpenSession evaluatedSession = session.container().isDirty() ? session.openSession().markDirty() : session.openSession();
-        SaveDisposition disposition = OpenSessionRules.decideSaveDisposition(
-            evaluatedSession,
-            validation,
-            session.closeReason()
-        );
+        SaveDisposition disposition = decideSaveDisposition(validation, session.closeReason());
+        boolean wroteContents = false;
 
         if (disposition == SaveDisposition.SAVE_TO_HOST) {
             ItemStack hostStack = ForgeHostSlotResolver.resolve(player, session.hostItem().slotRef());
             contentAccess.writeItemStacks(hostStack, session.container().copyContents());
+            wroteContents = true;
         } else {
             LOGGER.debug("Discarded quick shulker changes: {}", disposition);
         }
+
+        LOGGER.debug(
+            "Finished quick shulker session via source={}, closeReason={}, valid={}, dirty={}, disposition={}, wroteContents={}",
+            source,
+            session.closeReason(),
+            validation.valid(),
+            session.container().isDirty(),
+            disposition,
+            wroteContents
+        );
     }
 
     public void finishSessionOnDisconnect(ServerPlayer player) {
-        finishSession(player, null, CloseReason.PLAYER_DISCONNECTED);
+        finishSession(player, null, CloseReason.PLAYER_DISCONNECTED, "player_logged_out");
     }
 
     public HostValidationResult validateCurrentHost(ServerPlayer player, HostItemReference hostItemReference) {
@@ -125,6 +137,26 @@ public final class ForgeShulkerSessionManager {
             HostValidationMode.SAME_ITEM_TYPE_AND_SINGLE_COUNT,
             true
         );
+    }
+
+    private static boolean isNormalCloseReason(CloseReason closeReason) {
+        return closeReason == CloseReason.PLAYER_CLOSED
+            || closeReason == CloseReason.PLAYER_DISCONNECTED
+            || closeReason == CloseReason.PLAYER_DIED
+            || closeReason == CloseReason.DIMENSION_CHANGED;
+    }
+
+    private static SaveDisposition decideSaveDisposition(HostValidationResult validation, CloseReason closeReason) {
+        if (!validation.valid()) {
+            return SaveDisposition.DISCARD_CHANGES;
+        }
+        if (closeReason == CloseReason.HOST_INVALIDATED || closeReason == CloseReason.VALIDATION_REJECTED) {
+            return SaveDisposition.DISCARD_CHANGES;
+        }
+        if (isNormalCloseReason(closeReason)) {
+            return SaveDisposition.SAVE_TO_HOST;
+        }
+        return SaveDisposition.DISCARD_CHANGES;
     }
 
     private record ActiveSession(

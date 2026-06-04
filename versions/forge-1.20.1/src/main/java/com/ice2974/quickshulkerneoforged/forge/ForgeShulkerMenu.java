@@ -21,10 +21,10 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu {
 
     @Override
     public void removed(Player player) {
-        super.removed(player);
         if (!player.level().isClientSide() && player instanceof ServerPlayer serverPlayer) {
             sessionManager.finishSession(serverPlayer, this);
         }
+        super.removed(player);
     }
 
     public void markHostInvalidated() {

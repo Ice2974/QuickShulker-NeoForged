@@ -52,6 +52,8 @@ public final class ForgeShulkerContentAccess implements ContainerContentAccess<I
     public ContentWriteResult writeItemStacks(ItemStack hostHandle, NonNullList<ItemStack> items) {
         CompoundTag blockEntityTag = BlockItem.getBlockEntityData(hostHandle);
         CompoundTag target = blockEntityTag == null ? new CompoundTag() : blockEntityTag.copy();
+        // Clear old stored items first so an empty post-close container does not keep stale contents.
+        target.remove("Items");
         ContainerHelper.saveAllItems(target, items, false);
 
         boolean hasItems = false;
