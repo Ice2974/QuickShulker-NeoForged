@@ -12,9 +12,7 @@ gradle/wrapper/gradle-*-bin/
 
 .minecraft/
 run/
-runs/
 **/run/
-**/runs/
 logs/
 crash-reports/
 hs_err_pid*
