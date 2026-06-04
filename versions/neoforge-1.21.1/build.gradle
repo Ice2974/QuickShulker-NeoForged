@@ -55,6 +55,7 @@ processResources {
         mod_authors                     : mod_authors,
         mod_description                 : mod_description,
         neoforge_version                : neoforge_version,
+        neoforge_fml_version_range      : neoforge_fml_version_range,
         neoforge_loader_version_range   : neoforge_loader_version_range,
         neoforge_minecraft_version_range: neoforge_minecraft_version_range
     ]

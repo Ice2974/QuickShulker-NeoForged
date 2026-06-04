@@ -1,3 +1,5 @@
+modLoader="javafml"
+loaderVersion="${neoforge_fml_version_range}"
 license="${mod_license}"
 
 [[mods]]
