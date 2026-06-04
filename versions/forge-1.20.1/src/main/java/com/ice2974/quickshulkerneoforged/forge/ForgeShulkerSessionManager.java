@@ -46,7 +46,7 @@ public final class ForgeShulkerSessionManager {
         final ForgeShulkerMenu[] holder = new ForgeShulkerMenu[1];
         player.openMenu(new SimpleMenuProvider(
             (containerId, inventory, serverPlayer) -> {
-                ForgeShulkerMenu menu = new ForgeShulkerMenu(containerId, inventory, container, this);
+                ForgeShulkerMenu menu = new ForgeShulkerMenu(containerId, inventory, container, this, hostItemReference.slotRef());
                 holder[0] = menu;
                 return menu;
             },

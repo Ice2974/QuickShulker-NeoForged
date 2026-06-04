@@ -47,7 +47,7 @@ public final class NeoForgeShulkerSessionManager {
         final NeoForgeShulkerMenu[] holder = new NeoForgeShulkerMenu[1];
         player.openMenu(new SimpleMenuProvider(
             (containerId, inventory, serverPlayer) -> {
-                NeoForgeShulkerMenu menu = new NeoForgeShulkerMenu(containerId, inventory, container, this);
+                NeoForgeShulkerMenu menu = new NeoForgeShulkerMenu(containerId, inventory, container, this, hostItemReference.slotRef());
                 holder[0] = menu;
                 return menu;
             },
