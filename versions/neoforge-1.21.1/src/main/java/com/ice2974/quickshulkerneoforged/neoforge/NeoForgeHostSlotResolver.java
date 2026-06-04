@@ -9,10 +9,16 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.Optional;
 
 public final class NeoForgeHostSlotResolver {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NeoForgeHostSlotResolver.class);
+    private static final String CREATIVE_SLOT_WRAPPER_CLASS =
+        "net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen$SlotWrapper";
     private static final int PLAYER_HOTBAR_SIZE = 9;
     private static final int PLAYER_MAIN_INVENTORY_SIZE = 27;
     private static final int PLAYER_MAIN_INVENTORY_OFFSET = 9;
@@ -46,39 +52,18 @@ public final class NeoForgeHostSlotResolver {
             return Optional.empty();
         }
 
-        int menuSlotIndex = slot.index;
-        int containerSlot = slot.getContainerSlot();
-        if (menu instanceof InventoryMenu) {
-            if (menuSlotIndex == InventoryMenu.SHIELD_SLOT && containerSlot == Inventory.SLOT_OFFHAND) {
-                return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, menuSlotIndex));
-            }
-            if (menuSlotIndex >= InventoryMenu.USE_ROW_SLOT_START
-                && menuSlotIndex < InventoryMenu.USE_ROW_SLOT_END
-                && containerSlot >= 0
-                && containerSlot < PLAYER_HOTBAR_SIZE) {
-                return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_HOTBAR, containerSlot, menuSlotIndex));
-            }
-            if (menuSlotIndex >= InventoryMenu.INV_SLOT_START
-                && menuSlotIndex < InventoryMenu.INV_SLOT_END
-                && containerSlot >= PLAYER_MAIN_INVENTORY_OFFSET
-                && containerSlot < PLAYER_MAIN_INVENTORY_OFFSET + PLAYER_MAIN_INVENTORY_SIZE) {
-                return Optional.of(new HostSlotRef(
-                    HostStorageScope.PLAYER_MAIN_INVENTORY,
-                    containerSlot - PLAYER_MAIN_INVENTORY_OFFSET,
-                    menuSlotIndex
-                ));
-            }
-            return Optional.empty();
+        Slot effectiveSlot = unwrapSlot(slot);
+        int menuSlotIndex = effectiveSlot.index;
+        int containerSlot = effectiveSlot.getContainerSlot();
+        boolean slotUsesPlayerInventory = effectiveSlot.container == player.getInventory();
+        if (slotUsesPlayerInventory && containerSlot == Inventory.SLOT_OFFHAND) {
+            return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, menuSlotIndex));
         }
-
-        if (slot.container != player.getInventory()) {
-            return Optional.empty();
-        }
-
-        if (containerSlot >= 0 && containerSlot < PLAYER_HOTBAR_SIZE) {
+        if (slotUsesPlayerInventory && containerSlot >= 0 && containerSlot < PLAYER_HOTBAR_SIZE) {
             return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_HOTBAR, containerSlot, menuSlotIndex));
         }
-        if (containerSlot >= PLAYER_MAIN_INVENTORY_OFFSET
+        if (slotUsesPlayerInventory
+            && containerSlot >= PLAYER_MAIN_INVENTORY_OFFSET
             && containerSlot < PLAYER_MAIN_INVENTORY_OFFSET + PLAYER_MAIN_INVENTORY_SIZE) {
             return Optional.of(new HostSlotRef(
                 HostStorageScope.PLAYER_MAIN_INVENTORY,
@@ -86,10 +71,51 @@ public final class NeoForgeHostSlotResolver {
                 menuSlotIndex
             ));
         }
-        if (containerSlot == Inventory.SLOT_OFFHAND) {
+
+        if (menu instanceof InventoryMenu && menuSlotIndex == InventoryMenu.SHIELD_SLOT) {
+            LOGGER.debug(
+                "Falling back to InventoryMenu shield-slot offhand mapping: menuClass={}, rawSlotIndex={}, rawContainerSlot={}, slotIndex={}, containerSlot={}, containerClass={}, usesPlayerInventory={}",
+                menu.getClass().getName(),
+                slot.index,
+                slot.getContainerSlot(),
+                menuSlotIndex,
+                containerSlot,
+                effectiveSlot.container == null ? "<null>" : effectiveSlot.container.getClass().getName(),
+                slotUsesPlayerInventory
+            );
             return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, menuSlotIndex));
         }
+
+        LOGGER.debug(
+            "Unrecognized player inventory slot for quick open: menuClass={}, rawSlotIndex={}, rawContainerSlot={}, slotIndex={}, containerSlot={}, containerClass={}, usesPlayerInventory={}, inventoryMenu={}",
+            menu.getClass().getName(),
+            slot.index,
+            slot.getContainerSlot(),
+            menuSlotIndex,
+            containerSlot,
+            effectiveSlot.container == null ? "<null>" : effectiveSlot.container.getClass().getName(),
+            slotUsesPlayerInventory,
+            menu instanceof InventoryMenu
+        );
         return Optional.empty();
+    }
+
+    private static Slot unwrapSlot(Slot slot) {
+        if (!slot.getClass().getName().equals(CREATIVE_SLOT_WRAPPER_CLASS)) {
+            return slot;
+        }
+
+        try {
+            Field targetField = slot.getClass().getDeclaredField("target");
+            targetField.setAccessible(true);
+            Object target = targetField.get(slot);
+            if (target instanceof Slot targetSlot) {
+                return targetSlot;
+            }
+        } catch (ReflectiveOperationException exception) {
+            LOGGER.debug("Failed to unwrap creative slot wrapper for quick open.", exception);
+        }
+        return slot;
     }
 
     private static boolean isLogicalSlotInRange(int logicalSlotIndex, int size) {

@@ -108,6 +108,63 @@ Forge 当前直接拒绝的操作类型：
    - QuickShulker 打开请求统一折叠为 `HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, 45)`
 6. 对已经打开的副手宿主，`ShulkerBoxMenu` 虽然没有可见 offhand 槽位，但仍要阻止当前菜单内能够命中的 offhand swap 目标，避免通过 `ClickType.SWAP` 改变宿主。
 
+本轮继续修正了一个更具体的 NeoForge 1.21.1 背包副手问题：
+
+- 之前的副手识别条件过窄，过度依赖 `menu instanceof InventoryMenu + slot.index == InventoryMenu.SHIELD_SLOT + slot.getContainerSlot() == Inventory.SLOT_OFFHAND` 同时成立。
+- 实机 NeoForge 1.21.1 下，这几项条件未必会同时成立，因此 `NeoForgeHostSlotResolver.forPlayerInventorySlot(...)` 可能直接返回 `Optional.empty()`。
+- 一旦返回 `empty`，`NeoForgeQuickShulkerClient.trySendHovered(...)` 就不会发送 `OpenHostItemIntent`，也不会取消当前右键事件。
+- 这正是“副手快捷键打不开、右键打不开且落回原版拿起物品”的直接原因。
+
+新的副手识别策略改为：
+
+1. 优先按 `Slot` 本身识别玩家副手：
+   - `slot.container == player.getInventory()`
+   - `slot.getContainerSlot() == Inventory.SLOT_OFFHAND`
+   - 满足时直接返回 `HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, slot.index)`
+2. 再按同样的 `slot.container == player.getInventory()` 识别 hotbar 和主背包。
+3. `InventoryMenu.SHIELD_SLOT` 只作为 NeoForge 1.21.1 背包界面的兼容 fallback，不再作为唯一识别条件。
+
+之所以不能只依赖 `InventoryMenu.SHIELD_SLOT`，是因为：
+
+- QuickShulker 需要识别的是“这个 `Slot` 是否真实指向玩家副手宿主”，而不只是“这个 screen slot 看起来像副手位置”。
+- NeoForge 1.21.1 下 screen slot、menu slot、底层 player inventory slot 可能不会以最理想化的方式同时对齐。
+- 先按 `slot.container + containerSlot` 识别，能更接近 Forge 1.20.1 当前已经工作的语义。
+
+为便于继续排查，这次还新增了临时 `debug` 日志。
+如果副手实机仍失败，需要重点查看：
+
+- `screenClass`
+- `menuClass`
+- `slotIndex`
+- `containerSlot`
+- `containerClass`
+- `usesPlayerInventory`
+- `inventoryMenu`
+- `hoveredItemKey`
+- `trigger`
+
+本次实际失败日志已经确认了一种 NeoForge 1.21.1 特例：
+
+- `screenClass=net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen`
+- `menuClass=net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen$ItemPickerMenu`
+- `slotIndex=0`
+- `containerSlot=45`
+- `containerClass=net.minecraft.world.entity.player.Inventory`
+- `usesPlayerInventory=true`
+
+这说明玩家测试时命中的不是普通 `InventoryScreen` 槽位，而是创造模式背包界面的 `SlotWrapper`。
+在这个包装层里：
+
+- wrapper 自己的 `slot.index` 可能是 `0`
+- wrapper 自己的 `getContainerSlot()` 可能是 `45`
+- 但其内部 target slot 才对应真实玩家背包语义
+
+因此 NeoForge 1.21.1 不能只看当前悬停 `Slot` 外层暴露出来的 index / container slot；
+对创造模式背包界面，还需要先解包 `CreativeModeInventoryScreen.SlotWrapper` 的 target slot，再映射为：
+
+- 副手：`HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, 45)`
+- 其余玩家背包槽位：继续按 target slot 的 player inventory 语义识别
+
 NeoForge 当前拦截点：
 
 - `clicked(int slotId, int button, ClickType clickType, Player player)`

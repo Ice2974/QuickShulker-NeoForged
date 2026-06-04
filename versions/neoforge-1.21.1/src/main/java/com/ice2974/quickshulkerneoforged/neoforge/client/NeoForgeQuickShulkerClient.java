@@ -24,11 +24,15 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
 @EventBusSubscriber(modid = QuickShulkerConstants.MOD_ID, value = Dist.CLIENT)
 public final class NeoForgeQuickShulkerClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NeoForgeQuickShulkerClient.class);
+
     private NeoForgeQuickShulkerClient() {
     }
 
@@ -127,6 +131,18 @@ public final class NeoForgeQuickShulkerClient {
 
         Optional<HostSlotRef> hostSlot = NeoForgeHostSlotResolver.forPlayerInventorySlot(player, containerScreen.getMenu(), hoveredSlot);
         if (hostSlot.isEmpty()) {
+            LOGGER.debug(
+                "Failed to resolve hovered quick-open slot: screenClass={}, menuClass={}, slotIndex={}, containerSlot={}, containerClass={}, usesPlayerInventory={}, inventoryMenu={}, hoveredItemKey={}, trigger={}",
+                screen.getClass().getName(),
+                containerScreen.getMenu().getClass().getName(),
+                hoveredSlot.index,
+                hoveredSlot.getContainerSlot(),
+                hoveredSlot.container == null ? "<null>" : hoveredSlot.container.getClass().getName(),
+                hoveredSlot.container == player.getInventory(),
+                containerScreen.getMenu() instanceof net.minecraft.world.inventory.InventoryMenu,
+                NeoForgeItemSnapshots.snapshot(stack).itemKey(),
+                trigger
+            );
             return false;
         }
 
