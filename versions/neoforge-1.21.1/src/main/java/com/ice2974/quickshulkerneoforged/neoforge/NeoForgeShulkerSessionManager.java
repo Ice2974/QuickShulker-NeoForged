@@ -1,0 +1,183 @@
+package com.ice2974.quickshulkerneoforged.neoforge;
+
+import com.ice2974.quickshulkerneoforged.common.open.DefaultHostItemValidator;
+import com.ice2974.quickshulkerneoforged.common.open.HostItemReference;
+import com.ice2974.quickshulkerneoforged.common.open.HostValidationMode;
+import com.ice2974.quickshulkerneoforged.common.open.HostValidationResult;
+import com.ice2974.quickshulkerneoforged.common.session.CloseReason;
+import com.ice2974.quickshulkerneoforged.common.session.MenuOpenIntent;
+import com.ice2974.quickshulkerneoforged.common.session.OpenSession;
+import com.ice2974.quickshulkerneoforged.common.session.OpenSessionSafetyPolicy;
+import com.ice2974.quickshulkerneoforged.common.session.SaveDisposition;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public final class NeoForgeShulkerSessionManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NeoForgeShulkerSessionManager.class);
+
+    private final NeoForgeShulkerContentAccess contentAccess = new NeoForgeShulkerContentAccess();
+    private final DefaultHostItemValidator validator = new DefaultHostItemValidator();
+    private final Map<UUID, ActiveSession> sessions = new ConcurrentHashMap<>();
+
+    public void open(ServerPlayer player, HostItemReference hostItemReference) {
+        ItemStack hostStack = NeoForgeHostSlotResolver.resolve(player, hostItemReference.slotRef());
+        ItemBackedShulkerContainer container = new ItemBackedShulkerContainer(contentAccess, hostStack);
+        OpenSession openSession = OpenSession.create(
+            NeoForgeQuickOpenHandler.createRequest(hostItemReference.slotRef()),
+            hostItemReference,
+            new MenuOpenIntent(
+                "pending",
+                hostItemReference.quickOpenableTypeId(),
+                com.ice2974.quickshulkerneoforged.common.open.QuickOpenMenuKind.SHULKER_BOX,
+                hostItemReference,
+                true,
+                false
+            ),
+            OpenSessionSafetyPolicy.strict()
+        );
+
+        final NeoForgeShulkerMenu[] holder = new NeoForgeShulkerMenu[1];
+        player.openMenu(new SimpleMenuProvider(
+            (containerId, inventory, serverPlayer) -> {
+                NeoForgeShulkerMenu menu = new NeoForgeShulkerMenu(containerId, inventory, container, this);
+                holder[0] = menu;
+                return menu;
+            },
+            hostStack.has(DataComponents.CUSTOM_NAME) ? hostStack.getHoverName() : Component.translatable("container.shulkerBox")
+        ));
+
+        if (holder[0] != null) {
+            sessions.put(player.getUUID(), new ActiveSession(openSession, hostItemReference, holder[0], container, CloseReason.PLAYER_CLOSED));
+        }
+    }
+
+    public void tick(ServerPlayer player) {
+        ActiveSession session = sessions.get(player.getUUID());
+        if (session == null) {
+            return;
+        }
+        if (player.containerMenu != session.menu()) {
+            finishSession(player, null, CloseReason.PLAYER_CLOSED, "tick_menu_mismatch");
+            return;
+        }
+        HostValidationResult validation = validateCurrentHost(player, session.hostItem());
+        if (!validation.valid()) {
+            session.menu().markHostInvalidated();
+            sessions.put(player.getUUID(), session.withCloseReason(CloseReason.HOST_INVALIDATED));
+            LOGGER.debug("Closing quick shulker menu because host became invalid: {}", validation.failure());
+            player.closeContainer();
+        }
+    }
+
+    public void finishSession(ServerPlayer player, NeoForgeShulkerMenu menu) {
+        finishSession(player, menu, CloseReason.PLAYER_CLOSED, "menu_removed");
+    }
+
+    public void finishSession(ServerPlayer player, NeoForgeShulkerMenu menu, CloseReason closeReason) {
+        finishSession(player, menu, closeReason, "unspecified");
+    }
+
+    public void finishSession(ServerPlayer player, NeoForgeShulkerMenu menu, CloseReason closeReason, String source) {
+        ActiveSession session = sessions.get(player.getUUID());
+        if (session == null) {
+            return;
+        }
+        if (menu != null && session.menu() != menu) {
+            return;
+        }
+        sessions.remove(player.getUUID(), session);
+        if (closeReason != null && session.closeReason() != closeReason) {
+            session = session.withCloseReason(closeReason);
+        }
+
+        HostValidationResult validation = validateCurrentHost(player, session.hostItem());
+        if (!validation.valid() && isNormalCloseReason(session.closeReason())) {
+            session = session.withCloseReason(CloseReason.HOST_INVALIDATED);
+        }
+
+        OpenSession evaluatedSession = session.container().isDirty() ? session.openSession().markDirty() : session.openSession();
+        SaveDisposition disposition = decideSaveDisposition(validation, session.closeReason());
+        boolean wroteContents = false;
+
+        if (disposition == SaveDisposition.SAVE_TO_HOST) {
+            ItemStack hostStack = NeoForgeHostSlotResolver.resolve(player, session.hostItem().slotRef());
+            contentAccess.writeItemStacks(hostStack, session.container().copyContents());
+            wroteContents = true;
+        } else {
+            LOGGER.debug("Discarded quick shulker changes: {}", disposition);
+        }
+
+        LOGGER.debug(
+            "Finished quick shulker session via source={}, closeReason={}, valid={}, dirty={}, disposition={}, wroteContents={}, sessionState={}",
+            source,
+            session.closeReason(),
+            validation.valid(),
+            session.container().isDirty(),
+            disposition,
+            wroteContents,
+            evaluatedSession.state()
+        );
+    }
+
+    public void finishSessionOnDisconnect(ServerPlayer player) {
+        finishSession(player, null, CloseReason.PLAYER_DISCONNECTED, "player_logged_out");
+    }
+
+    public void finishSessionOnDeath(ServerPlayer player) {
+        finishSession(player, null, CloseReason.PLAYER_DIED, "player_respawned");
+    }
+
+    public void finishSessionOnDimensionChange(ServerPlayer player) {
+        finishSession(player, null, CloseReason.DIMENSION_CHANGED, "player_changed_dimension");
+    }
+
+    public HostValidationResult validateCurrentHost(ServerPlayer player, HostItemReference hostItemReference) {
+        ItemStack currentStack = NeoForgeHostSlotResolver.resolve(player, hostItemReference.slotRef());
+        return validator.validate(
+            hostItemReference,
+            NeoForgeItemSnapshots.snapshot(currentStack),
+            HostValidationMode.SAME_ITEM_TYPE_AND_SINGLE_COUNT,
+            true
+        );
+    }
+
+    private static boolean isNormalCloseReason(CloseReason closeReason) {
+        return closeReason == CloseReason.PLAYER_CLOSED
+            || closeReason == CloseReason.PLAYER_DISCONNECTED
+            || closeReason == CloseReason.PLAYER_DIED
+            || closeReason == CloseReason.DIMENSION_CHANGED;
+    }
+
+    private static SaveDisposition decideSaveDisposition(HostValidationResult validation, CloseReason closeReason) {
+        if (!validation.valid()) {
+            return SaveDisposition.DISCARD_CHANGES;
+        }
+        if (closeReason == CloseReason.HOST_INVALIDATED || closeReason == CloseReason.VALIDATION_REJECTED) {
+            return SaveDisposition.DISCARD_CHANGES;
+        }
+        if (isNormalCloseReason(closeReason)) {
+            return SaveDisposition.SAVE_TO_HOST;
+        }
+        return SaveDisposition.DISCARD_CHANGES;
+    }
+
+    private record ActiveSession(
+        OpenSession openSession,
+        HostItemReference hostItem,
+        NeoForgeShulkerMenu menu,
+        ItemBackedShulkerContainer container,
+        CloseReason closeReason
+    ) {
+        private ActiveSession withCloseReason(CloseReason nextReason) {
+            return new ActiveSession(openSession, hostItem, menu, container, nextReason);
+        }
+    }
+}
