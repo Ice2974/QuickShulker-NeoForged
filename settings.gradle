@@ -1,0 +1,21 @@
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.9.0'
+}
+
+rootProject.name = 'QuickShulker-NeoForged'
+
+include 'common'
+include 'forge-1.20.1'
+include 'neoforge-1.21.1'
+
+project(':forge-1.20.1').projectDir = file('versions/forge-1.20.1')
+project(':neoforge-1.21.1').projectDir = file('versions/neoforge-1.21.1')
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven { url = 'https://maven.neoforged.net/releases' }
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://libraries.minecraft.net' }
+    }
+}

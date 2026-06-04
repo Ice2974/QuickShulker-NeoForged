@@ -1,0 +1,77 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev.legacyforge' version "${moddevgradle_version}"
+}
+
+def commonProject = project(':common')
+
+base {
+    archivesName = archives_base_name
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(forge_java_version as int)
+    }
+    withSourcesJar()
+}
+
+legacyForge {
+    version = forge_version
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+sourceSets {
+    main {
+        compileClasspath += commonProject.sourceSets.main.output
+        runtimeClasspath += commonProject.sourceSets.main.output
+    }
+}
+
+dependencies {
+    implementation commonProject
+}
+
+processResources {
+    def replaceProperties = [
+        mod_id                       : mod_id,
+        mod_name                     : mod_name,
+        mod_version                  : mod_version,
+        mod_license                  : mod_license,
+        mod_authors                  : mod_authors,
+        mod_description              : mod_description,
+        forge_version                : forge_version,
+        forge_loader_version_range   : forge_loader_version_range,
+        forge_minecraft_version_range: forge_minecraft_version_range
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    from(commonProject.sourceSets.main.output)
+}
+
+tasks.named('sourcesJar', Jar).configure {
+    from(commonProject.sourceSets.main.allSource)
+}
+
+tasks.named('reobfJar').configure {
+    archiveFileName = "QuickShulker-Forge-v${project.version}-mc${forge_minecraft_version}.jar"
+}
