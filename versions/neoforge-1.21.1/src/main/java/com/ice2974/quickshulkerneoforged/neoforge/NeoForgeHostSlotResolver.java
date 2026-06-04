@@ -5,6 +5,8 @@ import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -14,7 +16,6 @@ public final class NeoForgeHostSlotResolver {
     private static final int PLAYER_HOTBAR_SIZE = 9;
     private static final int PLAYER_MAIN_INVENTORY_SIZE = 27;
     private static final int PLAYER_MAIN_INVENTORY_OFFSET = 9;
-    private static final int PLAYER_OFFHAND_CONTAINER_SLOT = 40;
 
     private NeoForgeHostSlotResolver() {
     }
@@ -40,12 +41,40 @@ public final class NeoForgeHostSlotResolver {
         };
     }
 
-    public static Optional<HostSlotRef> forPlayerInventorySlot(Player player, Slot slot, int menuSlotIndex) {
-        if (slot == null || slot.container != player.getInventory()) {
+    public static Optional<HostSlotRef> forPlayerInventorySlot(Player player, AbstractContainerMenu menu, Slot slot) {
+        if (slot == null || menu == null) {
             return Optional.empty();
         }
 
+        int menuSlotIndex = slot.index;
         int containerSlot = slot.getContainerSlot();
+        if (menu instanceof InventoryMenu) {
+            if (menuSlotIndex == InventoryMenu.SHIELD_SLOT && containerSlot == Inventory.SLOT_OFFHAND) {
+                return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, menuSlotIndex));
+            }
+            if (menuSlotIndex >= InventoryMenu.USE_ROW_SLOT_START
+                && menuSlotIndex < InventoryMenu.USE_ROW_SLOT_END
+                && containerSlot >= 0
+                && containerSlot < PLAYER_HOTBAR_SIZE) {
+                return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_HOTBAR, containerSlot, menuSlotIndex));
+            }
+            if (menuSlotIndex >= InventoryMenu.INV_SLOT_START
+                && menuSlotIndex < InventoryMenu.INV_SLOT_END
+                && containerSlot >= PLAYER_MAIN_INVENTORY_OFFSET
+                && containerSlot < PLAYER_MAIN_INVENTORY_OFFSET + PLAYER_MAIN_INVENTORY_SIZE) {
+                return Optional.of(new HostSlotRef(
+                    HostStorageScope.PLAYER_MAIN_INVENTORY,
+                    containerSlot - PLAYER_MAIN_INVENTORY_OFFSET,
+                    menuSlotIndex
+                ));
+            }
+            return Optional.empty();
+        }
+
+        if (slot.container != player.getInventory()) {
+            return Optional.empty();
+        }
+
         if (containerSlot >= 0 && containerSlot < PLAYER_HOTBAR_SIZE) {
             return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_HOTBAR, containerSlot, menuSlotIndex));
         }
@@ -57,7 +86,7 @@ public final class NeoForgeHostSlotResolver {
                 menuSlotIndex
             ));
         }
-        if (containerSlot == PLAYER_OFFHAND_CONTAINER_SLOT) {
+        if (containerSlot == Inventory.SLOT_OFFHAND) {
             return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, menuSlotIndex));
         }
         return Optional.empty();

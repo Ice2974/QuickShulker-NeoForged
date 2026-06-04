@@ -104,21 +104,29 @@ NeoForge 1.21.1 输入接入点：
 - 客户端发出 `QuickOpenTrigger.INVENTORY_RIGHT_CLICK`
 - 事件在客户端侧被取消，避免继续进入原版右键拿起 / 放下逻辑
 
+对 NeoForge 1.21.1 来说，这个取消是必要的：
+
+- 一旦 QuickShulker 已经决定发送 `OpenHostItemIntent`
+- 就不能再让同一次右键继续落入原版 `Screen.mouseClicked -> slotClicked` 路径
+- 否则会出现“已经请求打开潜影盒，但原版同时把副手盒子拿起来”的竞争行为
+
 ## HostSlotRef 映射策略
 
 本阶段没有把 screen slot index 直接当作玩家背包 index 使用。
 
 两个平台都采用同样的逻辑语义：
 
-1. 客户端先确认该槽位底层容器就是玩家自身背包
-2. 再读取该槽位在玩家背包容器中的真实 `container slot`
-3. 最后转换为 common `HostSlotRef`
+1. 客户端先判断该 screen slot 是否属于“允许打开的玩家背包槽位”
+2. 再读取该槽位在当前菜单中的 `menu slot index`
+3. 同时读取该槽位在玩家背包容器中的真实 `container slot`
+4. 最后转换为 common `HostSlotRef`
 
 映射规则：
 
-- `0..8` -> `HostStorageScope.PLAYER_HOTBAR`
-- `9..35` -> `HostStorageScope.PLAYER_MAIN_INVENTORY`
-- `40` -> `HostStorageScope.PLAYER_OFFHAND`
+- `container slot 0..8` -> `HostStorageScope.PLAYER_HOTBAR`
+- `container slot 9..35` -> `HostStorageScope.PLAYER_MAIN_INVENTORY`
+- `InventoryMenu.SHIELD_SLOT = menu slot 45` 且 `Inventory.SLOT_OFFHAND = container slot 40`
+  -> `HostStorageScope.PLAYER_OFFHAND`
 
 其中：
 
@@ -128,6 +136,24 @@ NeoForge 1.21.1 输入接入点：
 - `menuSlotIndex` 保留当前菜单中的槽位 index，供后续阶段继续扩展和调试使用
 
 服务端解析宿主时仍以 `scope + logicalSlotIndex` 为准，不信任客户端传来的 `ItemStack` 内容。
+
+### NeoForge 1.21.1 副手槽位补充
+
+NeoForge 1.21.1 背包界面的副手槽位不能只按“玩家背包 `container slot = 40`”做理想化判断。
+
+实际语义是：
+
+- 背包界面屏幕槽位：`InventoryMenu.SHIELD_SLOT = 45`
+- 玩家背包真实槽位：`Inventory.SLOT_OFFHAND = 40`
+- QuickShulker 最终映射：`HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, 45)`
+
+这次修复前，NeoForge 侧对背包界面副手槽位的识别不够显式，导致客户端没有稳定把该槽位折叠为 `PLAYER_OFFHAND`，于是：
+
+- 悬停副手潜影盒时快捷键无法发送正确的打开请求
+- 悬停副手潜影盒时右键无法稳定命中 QuickShulker 入口
+- 原版右键点击继续执行，表现成把副手物品拿起
+
+修复后，NeoForge 1.21.1 会先按 `InventoryMenu` 的菜单槽位语义识别副手，再映射为 common `HostSlotRef`。
 
 ## 哪些槽位支持打开
 
@@ -218,6 +244,11 @@ NeoForge 1.21.1：
 - 副手潜影盒按快捷键打开，关闭保存正常
 - 背包界面悬停玩家背包潜影盒，按快捷键打开，关闭保存正常
 - 背包界面悬停玩家背包潜影盒，右键打开，关闭保存正常
+- 打开背包，副手放 1 个潜影盒，悬停副手槽位按快捷键打开
+- 打开背包，副手放 1 个潜影盒，悬停副手槽位右键打开
+- 副手右键打开时，原版不会继续把副手盒子拿起
+- 副手潜影盒打开后，放入 / 取出物品并用 `Esc`、`E` 关闭，内容保存正确
+- 副手宿主在打开期间不会因当前菜单内可触发操作而被错误写回
 - 悬停非玩家背包槽位时不误打开
 - 宿主被移走、替换、数量变为非 1 时不写回错误目标
 

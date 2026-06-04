@@ -125,7 +125,7 @@ public final class NeoForgeQuickShulkerClient {
             return false;
         }
 
-        Optional<HostSlotRef> hostSlot = NeoForgeHostSlotResolver.forPlayerInventorySlot(player, hoveredSlot, hoveredSlot.index);
+        Optional<HostSlotRef> hostSlot = NeoForgeHostSlotResolver.forPlayerInventorySlot(player, containerScreen.getMenu(), hoveredSlot);
         if (hostSlot.isEmpty()) {
             return false;
         }

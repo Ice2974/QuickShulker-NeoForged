@@ -102,6 +102,11 @@ Forge 当前直接拒绝的操作类型：
 2. 菜单内根据玩家库存槽位和 `HostSlotRef` 解析可见宿主槽位。
 3. 若宿主是主手热栏潜影盒，则锁定对应 `menu slot index` 和对应的数字键交换目标。
 4. 若宿主是副手潜影盒，则维持“当前菜单不可直接操作 + 服务端继续 tick 校验”的保守边界。
+5. NeoForge 1.21.1 额外明确区分：
+   - 背包界面副手 screen slot 是 `InventoryMenu.SHIELD_SLOT = 45`
+   - 玩家背包真实 offhand slot 是 `Inventory.SLOT_OFFHAND = 40`
+   - QuickShulker 打开请求统一折叠为 `HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, 45)`
+6. 对已经打开的副手宿主，`ShulkerBoxMenu` 虽然没有可见 offhand 槽位，但仍要阻止当前菜单内能够命中的 offhand swap 目标，避免通过 `ClickType.SWAP` 改变宿主。
 
 NeoForge 当前拦截点：
 
@@ -126,6 +131,7 @@ NeoForge 当前也额外加入了重复打开保护：
 
 - 当当前菜单已经是 `NeoForgeShulkerMenu` 时，客户端不再发送新的 `OpenHostItemIntent`。
 - 当玩家已经存在 active session 时，服务端 `open(...)` 直接拒绝新请求，不创建新的 `ItemBackedShulkerContainer`，不调用 `player.openMenu(...)`，也不覆盖既有 session。
+- 当背包界面右键副手潜影盒时，一旦客户端决定发送打开请求，就必须立即取消当前 `ScreenEvent.MouseButtonPressed.Pre`，避免原版继续把副手物品拿起。
 
 ## 与阶段 4 / 5 关闭保存逻辑的关系
 
@@ -167,7 +173,6 @@ NeoForge 当前也额外加入了重复打开保护：
 9. 副手打开场景至少确认无复制、无崩溃、保存正常。
 10. 右键打开潜影盒后，再次右键当前打开的宿主盒子，应无反应，不打开第二个页面。
 11. 多次右键宿主盒子，不应出现两个不同内容的页面来回切换。
-
 ### NeoForge 1.21.1
 
 1. 主手潜影盒按 `K` 打开。
@@ -181,10 +186,13 @@ NeoForge 当前也额外加入了重复打开保护：
 9. 副手打开场景至少确认无复制、无崩溃、保存正常。
 10. 右键打开潜影盒后，再次右键当前打开的宿主盒子，应无反应，不打开第二个页面。
 11. 多次右键宿主盒子，不应出现两个不同内容的页面来回切换。
+12. 打开背包，副手放 1 个潜影盒，悬停副手槽位按快捷键打开。
+13. 打开背包，副手放 1 个潜影盒，悬停副手槽位右键打开，且原版不会把盒子拿起。
+14. 副手宿主打开后，尝试数字键交换 / 其他当前菜单内可命中的宿主修改路径，应无效。
 
 ## 待人工确认项
 
-- 当前 `ShulkerBoxMenu` 下副手宿主是否存在额外的 offhand swap 特殊输入路径，仍需实机确认。
+- 当前 `ShulkerBoxMenu` 下除已拦截的 `ClickType.SWAP + button 40` 之外，副手宿主是否还存在额外特殊输入路径，仍需实机确认。
 - 尚未完成 Minecraft 游戏内人工测试，无法确认行为已与原作在所有点击边界上完全一致。
 - 尚未完成多人 / 专用服务端人工测试。
 - 若后续继续大段参考或改写 `references/` 中第三方实现，仍需人工检查许可证和来源说明是否需要更新。

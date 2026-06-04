@@ -11,7 +11,6 @@ import net.minecraft.world.item.ItemStack;
 
 public final class NeoForgeShulkerMenu extends ShulkerBoxMenu {
     private static final int PLAYER_MAIN_INVENTORY_OFFSET = 9;
-    private static final int PLAYER_OFFHAND_CONTAINER_SLOT = 40;
 
     private final NeoForgeShulkerSessionManager sessionManager;
     private final Inventory playerInventory;
@@ -102,7 +101,7 @@ public final class NeoForgeShulkerMenu extends ShulkerBoxMenu {
         return switch (hostSlotRef.scope()) {
             case PLAYER_HOTBAR -> containerSlot == hostSlotRef.logicalSlotIndex();
             case PLAYER_MAIN_INVENTORY -> containerSlot == PLAYER_MAIN_INVENTORY_OFFSET + hostSlotRef.logicalSlotIndex();
-            case PLAYER_OFFHAND -> containerSlot == PLAYER_OFFHAND_CONTAINER_SLOT;
+            case PLAYER_OFFHAND -> containerSlot == Inventory.SLOT_OFFHAND;
             default -> false;
         };
     }
@@ -110,7 +109,7 @@ public final class NeoForgeShulkerMenu extends ShulkerBoxMenu {
     private boolean targetsLockedSwapButton(int button) {
         return switch (hostSlotRef.scope()) {
             case PLAYER_HOTBAR -> button == hostSlotRef.logicalSlotIndex();
-            case PLAYER_OFFHAND -> button == PLAYER_OFFHAND_CONTAINER_SLOT;
+            case PLAYER_OFFHAND -> button == Inventory.SLOT_OFFHAND;
             default -> false;
         };
     }
