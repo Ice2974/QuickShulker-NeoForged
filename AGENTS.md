@@ -388,11 +388,11 @@ QuickShulker-Forge-v{mod_version}-mc{minecraft_version}.jar
 QuickShulker-NeoForge-v{mod_version}-mc{minecraft_version}.jar
 ```
 
-第一版示例：
+示例：
 
 ```text
-QuickShulker-Forge-v0.1.0-mc1.20.1.jar
-QuickShulker-NeoForge-v0.1.0-mc1.21.1.jar
+QuickShulker-Forge-v1.0.0-mc1.20.1.jar
+QuickShulker-NeoForge-v1.0.0-mc1.21.1.jar
 ```
 
 不要擅自改成其他命名格式。
