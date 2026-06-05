@@ -27,6 +27,9 @@ public final class ForgeQuickOpenHandler {
         if (!ForgeQuickShulkerConfig.view().quickShulkerBox()) {
             return;
         }
+        if (!ForgeQuickShulkerConfig.view().allowsTrigger(intent.trigger())) {
+            return;
+        }
         if (!BuiltinQuickOpenables.SHULKER_BOX.id().equals(intent.requestedTypeId())) {
             return;
         }

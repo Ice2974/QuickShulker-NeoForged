@@ -1,6 +1,7 @@
 package com.ice2974.quickshulkerneoforged.common.config;
 
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenConfigGate;
+import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenableType;
 
 public interface QuickShulkerConfigView {
@@ -52,5 +53,16 @@ public interface QuickShulkerConfigView {
 
     default boolean isEnabled(QuickOpenableType type) {
         return isEnabled(type.configGate());
+    }
+
+    default boolean allowsTrigger(QuickOpenTrigger trigger) {
+        return switch (trigger) {
+            case HAND_KEYBIND -> keybindInHand();
+            case INVENTORY_KEYBIND -> keybindInInventory();
+            case HAND_RIGHT_CLICK -> rightClickToOpen();
+            case INVENTORY_RIGHT_CLICK -> rightClickToOpen() && rightClickInInventory();
+            case INTERNAL_REOPEN -> true;
+            case UNKNOWN -> false;
+        };
     }
 }

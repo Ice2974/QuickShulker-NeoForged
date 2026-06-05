@@ -21,6 +21,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ScreenEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -47,7 +48,8 @@ public final class ForgeQuickShulkerClient {
         }
 
         while (ForgeKeyMappings.OPEN_HELD_SHULKER.consumeClick()) {
-            if (trySendHeld(player, InteractionHand.MAIN_HAND) || trySendHeld(player, InteractionHand.OFF_HAND)) {
+            if (trySendHeld(player, InteractionHand.MAIN_HAND, QuickOpenTrigger.HAND_KEYBIND)
+                || trySendHeld(player, InteractionHand.OFF_HAND, QuickOpenTrigger.HAND_KEYBIND)) {
                 return;
             }
         }
@@ -99,7 +101,25 @@ public final class ForgeQuickShulkerClient {
         }
     }
 
-    private static boolean trySendHeld(Player player, InteractionHand hand) {
+    @SubscribeEvent
+    public static void onHandRightClick(PlayerInteractEvent.RightClickItem event) {
+        if (!ForgeQuickShulkerConfig.view().quickShulkerBox()
+            || !ForgeQuickShulkerConfig.view().rightClickToOpen()) {
+            return;
+        }
+
+        Player player = event.getEntity();
+        if (player == null || !player.level().isClientSide()) {
+            return;
+        }
+
+        if (trySendHeld(player, event.getHand(), QuickOpenTrigger.HAND_RIGHT_CLICK)) {
+            event.setCanceled(true);
+            event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
+        }
+    }
+
+    private static boolean trySendHeld(Player player, InteractionHand hand, QuickOpenTrigger trigger) {
         ItemStack stack = player.getItemInHand(hand);
         if (stack.isEmpty() || stack.getCount() != 1) {
             return false;
@@ -110,7 +130,7 @@ public final class ForgeQuickShulkerClient {
                 sendIntent(new OpenHostItemIntent(
                     typeId,
                     ForgeHostSlotResolver.forHand(player, hand),
-                    QuickOpenTrigger.HAND_KEYBIND
+                    trigger
                 ));
                 return true;
             })

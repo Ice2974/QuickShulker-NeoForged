@@ -27,6 +27,9 @@ public final class NeoForgeQuickOpenHandler {
         if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()) {
             return;
         }
+        if (!NeoForgeQuickShulkerConfig.view().allowsTrigger(intent.trigger())) {
+            return;
+        }
         if (!BuiltinQuickOpenables.SHULKER_BOX.id().equals(intent.requestedTypeId())) {
             return;
         }

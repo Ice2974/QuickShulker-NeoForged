@@ -24,6 +24,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,8 @@ public final class NeoForgeQuickShulkerClient {
         }
 
         while (NeoForgeKeyMappings.OPEN_HELD_SHULKER.consumeClick()) {
-            if (trySendHeld(player, InteractionHand.MAIN_HAND) || trySendHeld(player, InteractionHand.OFF_HAND)) {
+            if (trySendHeld(player, InteractionHand.MAIN_HAND, QuickOpenTrigger.HAND_KEYBIND)
+                || trySendHeld(player, InteractionHand.OFF_HAND, QuickOpenTrigger.HAND_KEYBIND)) {
                 return;
             }
         }
@@ -103,7 +105,25 @@ public final class NeoForgeQuickShulkerClient {
         }
     }
 
-    private static boolean trySendHeld(Player player, InteractionHand hand) {
+    @SubscribeEvent
+    public static void onHandRightClick(PlayerInteractEvent.RightClickItem event) {
+        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()
+            || !NeoForgeQuickShulkerConfig.view().rightClickToOpen()) {
+            return;
+        }
+
+        Player player = event.getEntity();
+        if (player == null || !player.level().isClientSide()) {
+            return;
+        }
+
+        if (trySendHeld(player, event.getHand(), QuickOpenTrigger.HAND_RIGHT_CLICK)) {
+            event.setCanceled(true);
+            event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
+        }
+    }
+
+    private static boolean trySendHeld(Player player, InteractionHand hand, QuickOpenTrigger trigger) {
         ItemStack stack = player.getItemInHand(hand);
         if (stack.isEmpty() || stack.getCount() != 1) {
             return false;
@@ -114,7 +134,7 @@ public final class NeoForgeQuickShulkerClient {
                 sendIntent(new OpenHostItemIntent(
                     typeId,
                     NeoForgeHostSlotResolver.forHand(player, hand),
-                    QuickOpenTrigger.HAND_KEYBIND
+                    trigger
                 ));
                 return true;
             })
