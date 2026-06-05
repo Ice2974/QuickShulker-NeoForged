@@ -244,6 +244,10 @@ NeoForge 1.21.1 当前使用：
 
 ### Forge 1.20.1
 
+- QuickShulker 菜单打开期间，按 `F` 不会把当前 hover 物品切到副手
+- QuickShulker 菜单打开期间，按 `F` 不会把副手宿主切回其他格，也不会复制出第二个盒子
+- 生存模式下，QuickShulker 菜单打开期间触发副手交换后不会在副手留下需要再点一下才消失的幽灵盒子
+
 - 单人存档启动
 - 本地 Forge 服务端启动
 - 客户端 + 服务端双端安装
@@ -263,6 +267,10 @@ NeoForge 1.21.1 当前使用：
 - 玩家死亡 / 掉线 / 切维度后会话按既有安全逻辑收尾
 
 ### NeoForge 1.21.1
+
+- QuickShulker 菜单打开期间，按 `F` 不会把当前 hover 物品切到副手
+- QuickShulker 菜单打开期间，按 `F` 不会把副手宿主切回其他格，也不会制造副手复制 / 异常宿主状态
+- 生存模式下，QuickShulker 菜单打开期间触发副手交换后不会在副手留下需要再点一下才消失的幽灵盒子
 
 - 单人存档启动
 - 本地 NeoForge 服务端启动
@@ -308,3 +316,41 @@ NeoForge 1.21.1 当前使用：
 - `references/quickshulker-26.1-neo`
 
 本次未直接修改 `references/` 目录。
+
+## 阶段 6A 补丁：菜单打开期间禁用副手交换
+
+阶段 6A 完成后又确认了一条新的数据安全边界：
+
+- 创造模式下，QuickShulker 菜单打开期间如果允许 `ClickType.SWAP` 命中原版副手交换路径，玩家可以在界面未关闭时把当前宿主盒子切到副手或从副手切走，进而出现复制或异常宿主状态。
+- 生存模式下，同一条路径虽然通常不会直接复制真实物品，但会因为客户端预测、服务端拒绝、宿主锁定状态不同步而在副手留下幽灵盒子；再次点击副手格后幽灵物品才会被原版同步清掉。
+
+根因确认：
+
+- 阶段 5.5 已经锁住了宿主槽位本身，以及数字键交换、`Q`、`PICKUP_ALL`、`QUICK_CRAFT` 等常规危险路径。
+- 但 QuickShulker 菜单打开期间，`offhand swap` / `F` 键对应的 `ClickType.SWAP + offhand button` 还没有被整体禁掉。
+- 这会让“当前 hover 物品切到副手”和“副手宿主切回其他槽位”仍然进入原版交换流程，与 QuickShulker 的宿主锁定和服务端会话校验相冲突。
+
+因此本阶段改为更保守的统一策略：
+
+- 只要当前菜单是 `ForgeShulkerMenu` 或 `NeoForgeShulkerMenu`，整个菜单周期内一律禁止 `offhand swap`。
+- 不再区分当前宿主是否本来就在副手，也不再只拦截 `hostSlotRef.scope() == PLAYER_OFFHAND` 的情况。
+- 这样可以同时阻止用 `F` 把当前 hover 的其他物品切到副手、把副手宿主切到其他物品格，以及因原版预测留下的副手幽灵物品。
+
+Forge 1.20.1 拦截点：
+
+- 服务端菜单侧：`ForgeShulkerMenu.clicked(...)` 中的 `shouldBlockHostSlotClick(...)` 现在会直接拒绝 `ClickType.SWAP + button 40`。
+- 客户端侧：`ForgeQuickShulkerClient.onScreenKeyPressed(...)` 在当前 `Screen` 是 `AbstractContainerScreen` 且 `menu instanceof ForgeShulkerMenu` 时，使用 `minecraft.options.keySwapOffhand.matches(...)` 预先取消原版副手交换键事件。
+- 服务端在拒绝该点击后除了 `broadcastChanges()` 之外，还会对 `player.inventoryMenu` 调用 `sendAllDataToRemote()`，用于把不在当前 `ShulkerBoxMenu` 可见范围内的副手槽一并强制同步回客户端，避免生存模式副手 ghost item。
+
+NeoForge 1.21.1 拦截点：
+
+- 服务端菜单侧：`NeoForgeShulkerMenu.clicked(...)` 中的 `shouldBlockHostSlotClick(...)` 现在会直接拒绝 `ClickType.SWAP + button Inventory.SLOT_OFFHAND`。
+- 客户端侧：`NeoForgeQuickShulkerClient.onScreenKeyPressed(...)` 在当前 `Screen` 是 `AbstractContainerScreen` 且 `menu instanceof NeoForgeShulkerMenu` 时，使用 `minecraft.options.keySwapOffhand.matches(...)` 取消原版副手交换键事件。
+- 服务端同样会在拒绝点击后同步当前菜单并对 `player.inventoryMenu` 调用 `sendAllDataToRemote()`，作为副手槽位的强制回滚补偿。
+
+与现有阶段目标的关系：
+
+- 这次补丁不回退现有的宿主锁定、重复打开保护、关闭保存逻辑。
+- `OpenHostItemIntent` 的防重入规则保持不变；当前 QuickShulker 菜单中仍不会发送新的打开请求。
+- 这次修复只覆盖 QuickShulker 菜单打开期间的副手交换，不扩展到末影箱同步、Bundle、工作台 / 切石机 / 铁砧，或鼠标拖拽批量行为。
+- 创造模式下 `CreativeModeInventoryScreen`、`SlotWrapper`、`CLONE` 等特殊路径虽然已被这次双端拦截显著收紧，但仍建议放到阶段 7 做专项实机验证。

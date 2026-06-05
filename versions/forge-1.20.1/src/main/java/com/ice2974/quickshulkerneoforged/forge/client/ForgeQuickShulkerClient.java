@@ -55,13 +55,21 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenKeyPressed(ScreenEvent.KeyPressed.Pre event) {
-        if (!ForgeQuickShulkerConfig.view().quickShulkerBox()
-            || !ForgeQuickShulkerConfig.view().keybindInInventory()) {
+        if (!ForgeQuickShulkerConfig.view().quickShulkerBox()) {
             return;
         }
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null) {
+            return;
+        }
+
+        if (shouldBlockOffhandSwap(event.getScreen(), minecraft, event.getKeyCode(), event.getScanCode())) {
+            event.setCanceled(true);
+            return;
+        }
+
+        if (!ForgeQuickShulkerConfig.view().keybindInInventory()) {
             return;
         }
 
@@ -153,5 +161,15 @@ public final class ForgeQuickShulkerClient {
 
     private static void sendIntent(OpenHostItemIntent intent) {
         ForgeQuickShulkerNetwork.sendOpenHostItem(new ForgeOpenHostItemPacket(intent));
+    }
+
+    private static boolean shouldBlockOffhandSwap(Screen screen, Minecraft minecraft, int keyCode, int scanCode) {
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
+            return false;
+        }
+        if (!(containerScreen.getMenu() instanceof ForgeShulkerMenu)) {
+            return false;
+        }
+        return minecraft.options.keySwapOffhand.matches(keyCode, scanCode);
     }
 }

@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 
 public final class NeoForgeShulkerMenu extends ShulkerBoxMenu {
     private static final int PLAYER_MAIN_INVENTORY_OFFSET = 9;
+    private static final int PLAYER_OFFHAND_CONTAINER_SLOT = Inventory.SLOT_OFFHAND;
 
     private final NeoForgeShulkerSessionManager sessionManager;
     private final Inventory playerInventory;
@@ -40,6 +41,7 @@ public final class NeoForgeShulkerMenu extends ShulkerBoxMenu {
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
         if (shouldBlockHostSlotClick(slotId, button, clickType)) {
+            syncBlockedClickState(player);
             return;
         }
         super.clicked(slotId, button, clickType, player);
@@ -85,6 +87,9 @@ public final class NeoForgeShulkerMenu extends ShulkerBoxMenu {
         if (isLockedMenuSlot(slotId)) {
             return true;
         }
+        if (clickType == ClickType.SWAP && isOffhandSwapButton(button)) {
+            return true;
+        }
         return clickType == ClickType.SWAP && targetsLockedSwapButton(button);
     }
 
@@ -109,9 +114,20 @@ public final class NeoForgeShulkerMenu extends ShulkerBoxMenu {
     private boolean targetsLockedSwapButton(int button) {
         return switch (hostSlotRef.scope()) {
             case PLAYER_HOTBAR -> button == hostSlotRef.logicalSlotIndex();
-            case PLAYER_OFFHAND -> button == Inventory.SLOT_OFFHAND;
+            case PLAYER_OFFHAND -> button == PLAYER_OFFHAND_CONTAINER_SLOT;
             default -> false;
         };
+    }
+
+    private static boolean isOffhandSwapButton(int button) {
+        return button == PLAYER_OFFHAND_CONTAINER_SLOT;
+    }
+
+    private void syncBlockedClickState(Player player) {
+        broadcastChanges();
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.inventoryMenu.sendAllDataToRemote();
+        }
     }
 
     private int findLockedMenuSlotIndex() {

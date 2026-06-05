@@ -41,6 +41,7 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu {
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
         if (shouldBlockHostSlotClick(slotId, button, clickType)) {
+            syncBlockedClickState(player);
             return;
         }
         super.clicked(slotId, button, clickType, player);
@@ -86,6 +87,9 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu {
         if (isLockedMenuSlot(slotId)) {
             return true;
         }
+        if (clickType == ClickType.SWAP && isOffhandSwapButton(button)) {
+            return true;
+        }
         return clickType == ClickType.SWAP && targetsLockedSwapButton(button);
     }
 
@@ -113,6 +117,17 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu {
             case PLAYER_OFFHAND -> button == PLAYER_OFFHAND_CONTAINER_SLOT;
             default -> false;
         };
+    }
+
+    private static boolean isOffhandSwapButton(int button) {
+        return button == PLAYER_OFFHAND_CONTAINER_SLOT;
+    }
+
+    private void syncBlockedClickState(Player player) {
+        broadcastChanges();
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.inventoryMenu.sendAllDataToRemote();
+        }
     }
 
     private int findLockedMenuSlotIndex() {

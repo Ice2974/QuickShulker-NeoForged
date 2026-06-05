@@ -58,13 +58,22 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenKeyPressed(ScreenEvent.KeyPressed.Pre event) {
-        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()
-            || !NeoForgeQuickShulkerConfig.view().keybindInInventory()) {
+        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()) {
             return;
         }
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null) {
+            return;
+        }
+
+        if (shouldBlockOffhandSwap(event.getScreen(), minecraft, event.getKeyCode(), event.getScanCode())) {
+            LOGGER.debug("Blocked offhand swap key while QuickShulker menu is open");
+            event.setCanceled(true);
+            return;
+        }
+
+        if (!NeoForgeQuickShulkerConfig.view().keybindInInventory()) {
             return;
         }
 
@@ -168,5 +177,15 @@ public final class NeoForgeQuickShulkerClient {
 
     private static void sendIntent(OpenHostItemIntent intent) {
         NeoForgeQuickShulkerNetwork.sendOpenHostItem(new NeoForgeOpenHostItemPayload(intent));
+    }
+
+    private static boolean shouldBlockOffhandSwap(Screen screen, Minecraft minecraft, int keyCode, int scanCode) {
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
+            return false;
+        }
+        if (!(containerScreen.getMenu() instanceof NeoForgeShulkerMenu)) {
+            return false;
+        }
+        return minecraft.options.keySwapOffhand.matches(keyCode, scanCode);
     }
 }
