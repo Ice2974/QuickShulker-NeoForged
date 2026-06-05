@@ -6,34 +6,29 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.ShulkerBoxMenu;
+import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuickOpenMenu {
+public final class ForgeCraftingTableMenu extends CraftingMenu implements ForgeQuickOpenMenu {
     private final ForgeShulkerSessionManager sessionManager;
     private final Inventory playerInventory;
     private final HostSlotRef hostSlotRef;
     private final int lockedMenuSlotIndex;
     private boolean hostInvalidated;
 
-    public ForgeShulkerMenu(
-        int containerId,
-        Inventory inventory,
-        ItemBackedShulkerContainer container,
-        ForgeShulkerSessionManager sessionManager,
-        HostSlotRef hostSlotRef
-    ) {
-        super(containerId, inventory, container);
+    public ForgeCraftingTableMenu(int containerId, Inventory inventory, ForgeShulkerSessionManager sessionManager, HostSlotRef hostSlotRef) {
+        super(containerId, inventory, ContainerLevelAccess.create(inventory.player.level(), inventory.player.blockPosition()));
         this.sessionManager = sessionManager;
         this.playerInventory = inventory;
         this.hostSlotRef = hostSlotRef;
-        this.lockedMenuSlotIndex = findLockedMenuSlotIndex();
+        this.lockedMenuSlotIndex = ForgeHostLockedMenuSupport.findLockedMenuSlotIndex(slots, playerInventory, hostSlotRef);
     }
 
     @Override
     public boolean stillValid(Player player) {
-        return !hostInvalidated && super.stillValid(player);
+        return !hostInvalidated;
     }
 
     @Override
@@ -63,7 +58,7 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuick
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        if (isLockedMenuSlot(index)) {
+        if (lockedMenuSlotIndex >= 0 && index == lockedMenuSlotIndex) {
             return ItemStack.EMPTY;
         }
         return super.quickMoveStack(player, index);
@@ -77,6 +72,7 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuick
         super.removed(player);
     }
 
+    @Override
     public void markHostInvalidated() {
         this.hostInvalidated = true;
     }
@@ -88,14 +84,6 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuick
 
     @Override
     public String quickOpenableTypeId() {
-        return BuiltinQuickOpenables.SHULKER_BOX.id();
-    }
-
-    private boolean isLockedMenuSlot(int slotId) {
-        return lockedMenuSlotIndex >= 0 && slotId == lockedMenuSlotIndex;
-    }
-
-    private int findLockedMenuSlotIndex() {
-        return ForgeHostLockedMenuSupport.findLockedMenuSlotIndex(slots, playerInventory, hostSlotRef);
+        return BuiltinQuickOpenables.CRAFTING_TABLE.id();
     }
 }

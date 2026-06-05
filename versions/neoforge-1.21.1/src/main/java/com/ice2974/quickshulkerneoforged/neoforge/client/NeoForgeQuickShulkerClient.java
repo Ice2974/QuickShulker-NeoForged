@@ -131,14 +131,17 @@ public final class NeoForgeQuickShulkerClient {
 
     private static boolean trySendHeld(Player player, InteractionHand hand, QuickOpenTrigger trigger) {
         ItemStack stack = player.getItemInHand(hand);
-        if (stack.isEmpty() || stack.getCount() != 1) {
+        if (stack.isEmpty()) {
             return false;
         }
 
         return resolveTypeId(stack)
-            .map(typeId -> {
+            .map(type -> {
+                if (type.requiresSingleHostStack() && stack.getCount() != 1) {
+                    return false;
+                }
                 sendIntent(new OpenHostItemIntent(
-                    typeId,
+                    type.id(),
                     NeoForgeHostSlotResolver.forHand(player, hand),
                     trigger
                 ));
@@ -161,10 +164,6 @@ public final class NeoForgeQuickShulkerClient {
         }
 
         ItemStack stack = hoveredSlot.getItem();
-        if (stack.getCount() != 1) {
-            return false;
-        }
-
         Optional<HostSlotRef> hostSlot = NeoForgeHostSlotResolver.forPlayerInventorySlot(player, containerScreen.getMenu(), hoveredSlot);
         if (hostSlot.isEmpty()) {
             LOGGER.debug(
@@ -184,22 +183,24 @@ public final class NeoForgeQuickShulkerClient {
 
         HostSlotRef requestedHostSlot = hostSlot.get();
         return resolveTypeId(stack)
-            .map(typeId -> {
-                if (containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu quickOpenMenu
-                    && quickOpenMenu.isSameHost(typeId, requestedHostSlot)) {
+            .map(type -> {
+                if (type.requiresSingleHostStack() && stack.getCount() != 1) {
                     return false;
                 }
-                sendIntent(new OpenHostItemIntent(typeId, requestedHostSlot, trigger));
+                if (containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu quickOpenMenu
+                    && quickOpenMenu.isSameHost(type.id(), requestedHostSlot)) {
+                    return false;
+                }
+                sendIntent(new OpenHostItemIntent(type.id(), requestedHostSlot, trigger));
                 return true;
             })
             .orElse(false);
     }
 
-    private static Optional<String> resolveTypeId(ItemStack stack) {
+    private static Optional<com.ice2974.quickshulkerneoforged.common.open.QuickOpenableType> resolveTypeId(ItemStack stack) {
         return NeoForgeQuickOpenRegistry.registry()
             .findTypeForItem(NeoForgeItemSnapshots.snapshot(stack).itemKey())
-            .filter(type -> NeoForgeQuickShulkerConfig.view().isEnabled(type))
-            .map(type -> type.id());
+            .filter(type -> NeoForgeQuickShulkerConfig.view().isEnabled(type));
     }
 
     private static void sendIntent(OpenHostItemIntent intent) {
@@ -219,6 +220,9 @@ public final class NeoForgeQuickShulkerClient {
 
     private static boolean hasAnyEnabledQuickOpenable() {
         return NeoForgeQuickShulkerConfig.view().quickShulkerBox()
-            || NeoForgeQuickShulkerConfig.view().quickEnderChest();
+            || NeoForgeQuickShulkerConfig.view().quickCraftingTables()
+            || NeoForgeQuickShulkerConfig.view().quickStonecutter()
+            || NeoForgeQuickShulkerConfig.view().quickEnderChest()
+            || NeoForgeQuickShulkerConfig.view().quickAnvil();
     }
 }

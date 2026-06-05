@@ -47,6 +47,25 @@ public final class NeoForgeHostSlotResolver {
         };
     }
 
+    public static void set(Player player, HostSlotRef slotRef, ItemStack stack) {
+        Inventory inventory = player.getInventory();
+        switch (slotRef.scope()) {
+            case PLAYER_HOTBAR -> {
+                if (isLogicalSlotInRange(slotRef.logicalSlotIndex(), PLAYER_HOTBAR_SIZE)) {
+                    inventory.setItem(slotRef.logicalSlotIndex(), stack);
+                }
+            }
+            case PLAYER_MAIN_INVENTORY -> {
+                if (isLogicalSlotInRange(slotRef.logicalSlotIndex(), PLAYER_MAIN_INVENTORY_SIZE)) {
+                    inventory.setItem(PLAYER_MAIN_INVENTORY_OFFSET + slotRef.logicalSlotIndex(), stack);
+                }
+            }
+            case PLAYER_OFFHAND -> inventory.offhand.set(0, stack);
+            default -> {
+            }
+        }
+    }
+
     public static Optional<HostSlotRef> forPlayerInventorySlot(Player player, AbstractContainerMenu menu, Slot slot) {
         if (slot == null || menu == null) {
             return Optional.empty();

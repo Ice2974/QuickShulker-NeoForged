@@ -33,6 +33,11 @@ public final class ForgeQuickOpenRegistry {
         bind(registry, Items.RED_SHULKER_BOX);
         bind(registry, Items.BLACK_SHULKER_BOX);
         bind(registry, Items.ENDER_CHEST, BuiltinQuickOpenables.ENDER_CHEST.id());
+        bind(registry, Items.CRAFTING_TABLE, BuiltinQuickOpenables.CRAFTING_TABLE.id());
+        bind(registry, Items.STONECUTTER, BuiltinQuickOpenables.STONECUTTER.id());
+        bind(registry, Items.ANVIL, BuiltinQuickOpenables.ANVIL.id());
+        bind(registry, Items.CHIPPED_ANVIL, BuiltinQuickOpenables.ANVIL.id());
+        bind(registry, Items.DAMAGED_ANVIL, BuiltinQuickOpenables.ANVIL.id());
         return registry;
     }
 

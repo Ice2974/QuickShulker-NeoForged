@@ -43,6 +43,11 @@ public final class NeoForgeQuickOpenRegistry {
             registry.bindItem(BuiltInRegistries.ITEM.getKey(item).toString(), BuiltinQuickOpenables.SHULKER_BOX.id());
         }
         registry.bindItem(BuiltInRegistries.ITEM.getKey(Items.ENDER_CHEST).toString(), BuiltinQuickOpenables.ENDER_CHEST.id());
+        registry.bindItem(BuiltInRegistries.ITEM.getKey(Items.CRAFTING_TABLE).toString(), BuiltinQuickOpenables.CRAFTING_TABLE.id());
+        registry.bindItem(BuiltInRegistries.ITEM.getKey(Items.STONECUTTER).toString(), BuiltinQuickOpenables.STONECUTTER.id());
+        registry.bindItem(BuiltInRegistries.ITEM.getKey(Items.ANVIL).toString(), BuiltinQuickOpenables.ANVIL.id());
+        registry.bindItem(BuiltInRegistries.ITEM.getKey(Items.CHIPPED_ANVIL).toString(), BuiltinQuickOpenables.ANVIL.id());
+        registry.bindItem(BuiltInRegistries.ITEM.getKey(Items.DAMAGED_ANVIL).toString(), BuiltinQuickOpenables.ANVIL.id());
         return registry;
     }
 }

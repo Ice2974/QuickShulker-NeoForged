@@ -1,11 +1,9 @@
 package com.ice2974.quickshulkerneoforged.neoforge.client;
 
-import com.ice2974.quickshulkerneoforged.common.open.BuiltinQuickOpenables;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.ContainerScreen;
-import net.minecraft.client.gui.screens.inventory.ShulkerBoxScreen;
+import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickOpenMenu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.lwjgl.glfw.GLFW;
@@ -94,13 +92,9 @@ final class NeoForgeQuickOpenMouseRestore {
     }
 
     private static boolean isExpectedQuickOpenScreen(Screen screen, String requestedTypeId) {
-        if (BuiltinQuickOpenables.SHULKER_BOX.id().equals(requestedTypeId)) {
-            return screen instanceof ShulkerBoxScreen;
-        }
-        if (BuiltinQuickOpenables.ENDER_CHEST.id().equals(requestedTypeId)) {
-            return screen instanceof ContainerScreen;
-        }
-        return false;
+        return screen instanceof AbstractContainerScreen<?> containerScreen
+            && containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu quickOpenMenu
+            && requestedTypeId.equals(quickOpenMenu.quickOpenableTypeId());
     }
 
     private record PendingRestore(double mouseX, double mouseY, Screen sourceScreen, String requestedTypeId, int remainingTicks) {

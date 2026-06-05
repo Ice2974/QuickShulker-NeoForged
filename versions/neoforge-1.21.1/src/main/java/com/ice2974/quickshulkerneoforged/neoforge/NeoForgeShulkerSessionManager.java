@@ -1,12 +1,14 @@
 package com.ice2974.quickshulkerneoforged.neoforge;
 
 import com.ice2974.quickshulkerneoforged.common.open.DefaultHostItemValidator;
+import com.ice2974.quickshulkerneoforged.common.open.BuiltinQuickOpenables;
 import com.ice2974.quickshulkerneoforged.common.open.HostIdentity;
 import com.ice2974.quickshulkerneoforged.common.open.HostItemReference;
 import com.ice2974.quickshulkerneoforged.common.open.HostValidationMode;
 import com.ice2974.quickshulkerneoforged.common.open.HostValidationResult;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenMenuKind;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
+import com.ice2974.quickshulkerneoforged.common.open.QuickOpenableType;
 import com.ice2974.quickshulkerneoforged.common.session.CloseReason;
 import com.ice2974.quickshulkerneoforged.common.session.MenuOpenIntent;
 import com.ice2974.quickshulkerneoforged.common.session.OpenSession;
@@ -69,6 +71,9 @@ public final class NeoForgeShulkerSessionManager {
         ActiveSession session = switch (hostItemReference.quickOpenableTypeId()) {
             case "shulker_box" -> openShulkerSession(player, hostItemReference, trigger);
             case "ender_chest" -> openEnderChestSession(player, hostItemReference, trigger);
+            case "crafting_table" -> openCraftingTableSession(player, hostItemReference, trigger);
+            case "stonecutter" -> openStonecutterSession(player, hostItemReference, trigger);
+            case "anvil" -> openAnvilSession(player, hostItemReference, trigger);
             default -> null;
         };
         if (session != null) {
@@ -161,11 +166,14 @@ public final class NeoForgeShulkerSessionManager {
 
     public HostValidationResult validateCurrentHost(ServerPlayer player, HostItemReference hostItemReference) {
         ItemStack currentStack = NeoForgeHostSlotResolver.resolve(player, hostItemReference.slotRef());
+        QuickOpenableType type = NeoForgeQuickOpenRegistry.registry()
+            .findType(hostItemReference.quickOpenableTypeId())
+            .orElse(BuiltinQuickOpenables.SHULKER_BOX);
         return validator.validate(
             hostItemReference,
             NeoForgeItemSnapshots.snapshot(currentStack),
-            HostValidationMode.SAME_ITEM_TYPE_AND_SINGLE_COUNT,
-            true
+            type.requiresSingleHostStack() ? HostValidationMode.SAME_ITEM_TYPE_AND_SINGLE_COUNT : HostValidationMode.SAME_ITEM_TYPE,
+            type.requiresSingleHostStack()
         );
     }
 
@@ -231,6 +239,63 @@ public final class NeoForgeShulkerSessionManager {
                 return menu;
             },
             Component.translatable("container.enderchest")
+        ));
+
+        if (holder[0] == null) {
+            return null;
+        }
+        return ActiveSession.forTransient(openSession, hostItemReference, holder[0], CloseReason.PLAYER_CLOSED);
+    }
+
+    private ActiveSession openCraftingTableSession(ServerPlayer player, HostItemReference hostItemReference, QuickOpenTrigger trigger) {
+        OpenSession openSession = createOpenSession(hostItemReference, trigger, QuickOpenMenuKind.CRAFTING_TABLE);
+
+        final NeoForgeCraftingTableMenu[] holder = new NeoForgeCraftingTableMenu[1];
+        player.openMenu(new SimpleMenuProvider(
+            (containerId, inventory, serverPlayer) -> {
+                NeoForgeCraftingTableMenu menu = new NeoForgeCraftingTableMenu(containerId, inventory, this, hostItemReference.slotRef());
+                holder[0] = menu;
+                return menu;
+            },
+            Component.translatable("container.crafting")
+        ));
+
+        if (holder[0] == null) {
+            return null;
+        }
+        return ActiveSession.forTransient(openSession, hostItemReference, holder[0], CloseReason.PLAYER_CLOSED);
+    }
+
+    private ActiveSession openStonecutterSession(ServerPlayer player, HostItemReference hostItemReference, QuickOpenTrigger trigger) {
+        OpenSession openSession = createOpenSession(hostItemReference, trigger, QuickOpenMenuKind.STONECUTTER);
+
+        final NeoForgeStonecutterMenu[] holder = new NeoForgeStonecutterMenu[1];
+        player.openMenu(new SimpleMenuProvider(
+            (containerId, inventory, serverPlayer) -> {
+                NeoForgeStonecutterMenu menu = new NeoForgeStonecutterMenu(containerId, inventory, this, hostItemReference.slotRef());
+                holder[0] = menu;
+                return menu;
+            },
+            Component.translatable("container.stonecutter")
+        ));
+
+        if (holder[0] == null) {
+            return null;
+        }
+        return ActiveSession.forTransient(openSession, hostItemReference, holder[0], CloseReason.PLAYER_CLOSED);
+    }
+
+    private ActiveSession openAnvilSession(ServerPlayer player, HostItemReference hostItemReference, QuickOpenTrigger trigger) {
+        OpenSession openSession = createOpenSession(hostItemReference, trigger, QuickOpenMenuKind.ANVIL);
+
+        final NeoForgeAnvilMenu[] holder = new NeoForgeAnvilMenu[1];
+        player.openMenu(new SimpleMenuProvider(
+            (containerId, inventory, serverPlayer) -> {
+                NeoForgeAnvilMenu menu = new NeoForgeAnvilMenu(containerId, inventory, this, hostItemReference.slotRef());
+                holder[0] = menu;
+                return menu;
+            },
+            Component.translatable("container.repair")
         ));
 
         if (holder[0] == null) {

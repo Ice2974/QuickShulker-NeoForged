@@ -38,7 +38,7 @@ public final class NeoForgeQuickOpenHandler {
         }
 
         ItemStack hostStack = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot());
-        if (hostStack.isEmpty() || hostStack.getCount() != 1) {
+        if (hostStack.isEmpty() || (requestedType.requiresSingleHostStack() && hostStack.getCount() != 1)) {
             return;
         }
 
@@ -60,6 +60,9 @@ public final class NeoForgeQuickOpenHandler {
 
     private static boolean isSupportedType(String typeId) {
         return BuiltinQuickOpenables.SHULKER_BOX.id().equals(typeId)
-            || BuiltinQuickOpenables.ENDER_CHEST.id().equals(typeId);
+            || BuiltinQuickOpenables.ENDER_CHEST.id().equals(typeId)
+            || BuiltinQuickOpenables.CRAFTING_TABLE.id().equals(typeId)
+            || BuiltinQuickOpenables.STONECUTTER.id().equals(typeId)
+            || BuiltinQuickOpenables.ANVIL.id().equals(typeId);
     }
 }

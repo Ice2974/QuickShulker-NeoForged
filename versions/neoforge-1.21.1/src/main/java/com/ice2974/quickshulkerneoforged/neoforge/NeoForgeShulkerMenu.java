@@ -11,9 +11,6 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 public final class NeoForgeShulkerMenu extends ShulkerBoxMenu implements NeoForgeQuickOpenMenu {
-    private static final int PLAYER_MAIN_INVENTORY_OFFSET = 9;
-    private static final int PLAYER_OFFHAND_CONTAINER_SLOT = Inventory.SLOT_OFFHAND;
-
     private final NeoForgeShulkerSessionManager sessionManager;
     private final Inventory playerInventory;
     private final HostSlotRef hostSlotRef;
@@ -41,8 +38,8 @@ public final class NeoForgeShulkerMenu extends ShulkerBoxMenu implements NeoForg
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
-        if (shouldBlockHostSlotClick(slotId, button, clickType)) {
-            syncBlockedClickState(player);
+        if (NeoForgeHostLockedMenuSupport.shouldBlockHostSlotClick(slotId, button, clickType, lockedMenuSlotIndex, hostSlotRef)) {
+            NeoForgeHostLockedMenuSupport.syncBlockedClickState(player, this::broadcastChanges);
             return;
         }
         super.clicked(slotId, button, clickType, player);
@@ -50,7 +47,7 @@ public final class NeoForgeShulkerMenu extends ShulkerBoxMenu implements NeoForg
 
     @Override
     public boolean canTakeItemForPickAll(ItemStack stack, Slot slot) {
-        if (isLockedHostSlot(slot)) {
+        if (NeoForgeHostLockedMenuSupport.isLockedHostSlot(slot, playerInventory, hostSlotRef)) {
             return false;
         }
         return super.canTakeItemForPickAll(stack, slot);
@@ -58,7 +55,7 @@ public final class NeoForgeShulkerMenu extends ShulkerBoxMenu implements NeoForg
 
     @Override
     public boolean canDragTo(Slot slot) {
-        if (isLockedHostSlot(slot)) {
+        if (NeoForgeHostLockedMenuSupport.isLockedHostSlot(slot, playerInventory, hostSlotRef)) {
             return false;
         }
         return super.canDragTo(slot);
@@ -94,59 +91,11 @@ public final class NeoForgeShulkerMenu extends ShulkerBoxMenu implements NeoForg
         return BuiltinQuickOpenables.SHULKER_BOX.id();
     }
 
-    private boolean shouldBlockHostSlotClick(int slotId, int button, ClickType clickType) {
-        if (isLockedMenuSlot(slotId)) {
-            return true;
-        }
-        if (clickType == ClickType.SWAP && isOffhandSwapButton(button)) {
-            return true;
-        }
-        return clickType == ClickType.SWAP && targetsLockedSwapButton(button);
-    }
-
     private boolean isLockedMenuSlot(int slotId) {
         return lockedMenuSlotIndex >= 0 && slotId == lockedMenuSlotIndex;
     }
 
-    private boolean isLockedHostSlot(Slot slot) {
-        if (slot == null || slot.container != playerInventory) {
-            return false;
-        }
-
-        int containerSlot = slot.getContainerSlot();
-        return switch (hostSlotRef.scope()) {
-            case PLAYER_HOTBAR -> containerSlot == hostSlotRef.logicalSlotIndex();
-            case PLAYER_MAIN_INVENTORY -> containerSlot == PLAYER_MAIN_INVENTORY_OFFSET + hostSlotRef.logicalSlotIndex();
-            case PLAYER_OFFHAND -> containerSlot == Inventory.SLOT_OFFHAND;
-            default -> false;
-        };
-    }
-
-    private boolean targetsLockedSwapButton(int button) {
-        return switch (hostSlotRef.scope()) {
-            case PLAYER_HOTBAR -> button == hostSlotRef.logicalSlotIndex();
-            case PLAYER_OFFHAND -> button == PLAYER_OFFHAND_CONTAINER_SLOT;
-            default -> false;
-        };
-    }
-
-    private static boolean isOffhandSwapButton(int button) {
-        return button == PLAYER_OFFHAND_CONTAINER_SLOT;
-    }
-
-    private void syncBlockedClickState(Player player) {
-        broadcastChanges();
-        if (player instanceof ServerPlayer serverPlayer) {
-            serverPlayer.inventoryMenu.sendAllDataToRemote();
-        }
-    }
-
     private int findLockedMenuSlotIndex() {
-        for (int slotIndex = 0; slotIndex < slots.size(); slotIndex++) {
-            if (isLockedHostSlot(slots.get(slotIndex))) {
-                return slotIndex;
-            }
-        }
-        return -1;
+        return NeoForgeHostLockedMenuSupport.findLockedMenuSlotIndex(slots, playerInventory, hostSlotRef);
     }
 }

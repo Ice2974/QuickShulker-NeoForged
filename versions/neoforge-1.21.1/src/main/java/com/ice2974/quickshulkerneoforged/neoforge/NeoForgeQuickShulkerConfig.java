@@ -14,7 +14,10 @@ public final class NeoForgeQuickShulkerConfig {
     private static final ModConfigSpec.BooleanValue RIGHT_CLICK_CLOSE;
     private static final ModConfigSpec.BooleanValue SUPPORTS_MOUSE_DRAGGED;
     private static final ModConfigSpec.BooleanValue QUICK_SHULKER_BOX;
+    private static final ModConfigSpec.BooleanValue QUICK_CRAFTING_TABLE;
+    private static final ModConfigSpec.BooleanValue QUICK_STONECUTTER;
     private static final ModConfigSpec.BooleanValue QUICK_ENDER_CHEST;
+    private static final ModConfigSpec.BooleanValue QUICK_ANVIL;
     private static final QuickShulkerConfigView VIEW = new ConfigView();
 
     static {
@@ -47,9 +50,18 @@ public final class NeoForgeQuickShulkerConfig {
         QUICK_SHULKER_BOX = builder
             .comment("Enable quick-open behavior for shulker boxes.")
             .define("quickShulkerBox", DEFAULTS.quickShulkerBox());
+        QUICK_CRAFTING_TABLE = builder
+            .comment("Enable quick-open behavior for crafting tables.")
+            .define("quickCraftingTable", DEFAULTS.quickCraftingTables());
+        QUICK_STONECUTTER = builder
+            .comment("Enable quick-open behavior for stonecutters.")
+            .define("quickStonecutter", DEFAULTS.quickStonecutter());
         QUICK_ENDER_CHEST = builder
             .comment("Enable quick-open behavior for ender chests.")
             .define("quickEnderChest", DEFAULTS.quickEnderChest());
+        QUICK_ANVIL = builder
+            .comment("Enable quick-open behavior for anvils.")
+            .define("quickAnvil", DEFAULTS.quickAnvil());
         builder.pop();
 
         SPEC = builder.build();
@@ -135,12 +147,12 @@ public final class NeoForgeQuickShulkerConfig {
 
         @Override
         public boolean quickCraftingTables() {
-            return DEFAULTS.quickCraftingTables();
+            return QUICK_CRAFTING_TABLE.get();
         }
 
         @Override
         public boolean quickStonecutter() {
-            return DEFAULTS.quickStonecutter();
+            return QUICK_STONECUTTER.get();
         }
 
         @Override
@@ -150,7 +162,7 @@ public final class NeoForgeQuickShulkerConfig {
 
         @Override
         public boolean quickAnvil() {
-            return DEFAULTS.quickAnvil();
+            return QUICK_ANVIL.get();
         }
     }
 }

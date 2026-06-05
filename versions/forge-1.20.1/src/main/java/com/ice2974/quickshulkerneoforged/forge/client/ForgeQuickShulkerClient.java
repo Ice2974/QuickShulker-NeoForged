@@ -130,14 +130,17 @@ public final class ForgeQuickShulkerClient {
 
     private static boolean trySendHeld(Player player, InteractionHand hand, QuickOpenTrigger trigger) {
         ItemStack stack = player.getItemInHand(hand);
-        if (stack.isEmpty() || stack.getCount() != 1) {
+        if (stack.isEmpty()) {
             return false;
         }
 
         return resolveTypeId(stack)
-            .map(typeId -> {
+            .map(type -> {
+                if (type.requiresSingleHostStack() && stack.getCount() != 1) {
+                    return false;
+                }
                 sendIntent(new OpenHostItemIntent(
-                    typeId,
+                    type.id(),
                     ForgeHostSlotResolver.forHand(player, hand),
                     trigger
                 ));
@@ -160,10 +163,6 @@ public final class ForgeQuickShulkerClient {
         }
 
         ItemStack stack = hoveredSlot.getItem();
-        if (stack.getCount() != 1) {
-            return false;
-        }
-
         Optional<HostSlotRef> hostSlot = ForgeHostSlotResolver.forPlayerInventorySlot(player, hoveredSlot, hoveredSlot.index);
         if (hostSlot.isEmpty()) {
             return false;
@@ -171,22 +170,24 @@ public final class ForgeQuickShulkerClient {
 
         HostSlotRef requestedHostSlot = hostSlot.get();
         return resolveTypeId(stack)
-            .map(typeId -> {
-                if (containerScreen.getMenu() instanceof ForgeQuickOpenMenu quickOpenMenu
-                    && quickOpenMenu.isSameHost(typeId, requestedHostSlot)) {
+            .map(type -> {
+                if (type.requiresSingleHostStack() && stack.getCount() != 1) {
                     return false;
                 }
-                sendIntent(new OpenHostItemIntent(typeId, requestedHostSlot, trigger));
+                if (containerScreen.getMenu() instanceof ForgeQuickOpenMenu quickOpenMenu
+                    && quickOpenMenu.isSameHost(type.id(), requestedHostSlot)) {
+                    return false;
+                }
+                sendIntent(new OpenHostItemIntent(type.id(), requestedHostSlot, trigger));
                 return true;
             })
             .orElse(false);
     }
 
-    private static Optional<String> resolveTypeId(ItemStack stack) {
+    private static Optional<com.ice2974.quickshulkerneoforged.common.open.QuickOpenableType> resolveTypeId(ItemStack stack) {
         return ForgeQuickOpenRegistry.registry()
             .findTypeForItem(ForgeItemSnapshots.snapshot(stack).itemKey())
-            .filter(type -> ForgeQuickShulkerConfig.view().isEnabled(type))
-            .map(type -> type.id());
+            .filter(type -> ForgeQuickShulkerConfig.view().isEnabled(type));
     }
 
     private static void sendIntent(OpenHostItemIntent intent) {
@@ -206,6 +207,9 @@ public final class ForgeQuickShulkerClient {
 
     private static boolean hasAnyEnabledQuickOpenable() {
         return ForgeQuickShulkerConfig.view().quickShulkerBox()
-            || ForgeQuickShulkerConfig.view().quickEnderChest();
+            || ForgeQuickShulkerConfig.view().quickCraftingTables()
+            || ForgeQuickShulkerConfig.view().quickStonecutter()
+            || ForgeQuickShulkerConfig.view().quickEnderChest()
+            || ForgeQuickShulkerConfig.view().quickAnvil();
     }
 }
