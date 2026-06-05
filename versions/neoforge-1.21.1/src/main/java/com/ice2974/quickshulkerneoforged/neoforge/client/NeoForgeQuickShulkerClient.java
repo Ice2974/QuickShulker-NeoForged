@@ -3,6 +3,7 @@ package com.ice2974.quickshulkerneoforged.neoforge.client;
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.OpenHostItemIntent;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
+import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeHostSlotResolver;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeItemSnapshots;
@@ -212,10 +213,27 @@ public final class NeoForgeQuickShulkerClient {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return false;
         }
-        if (!(containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu)) {
+        if (!(containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu quickOpenMenu)) {
             return false;
         }
-        return minecraft.options.keySwapOffhand.matches(keyCode, scanCode);
+        if (!minecraft.options.keySwapOffhand.matches(keyCode, scanCode)) {
+            return false;
+        }
+
+        HostSlotRef hostSlotRef = quickOpenMenu.hostSlotRef();
+        if (hostSlotRef.scope() == HostStorageScope.PLAYER_OFFHAND) {
+            return true;
+        }
+
+        Slot hoveredSlot = containerScreen.getSlotUnderMouse();
+        if (hoveredSlot == null) {
+            return false;
+        }
+
+        return NeoForgeHostSlotResolver.forPlayerInventorySlot(minecraft.player, containerScreen.getMenu(), hoveredSlot)
+            .map(hoveredHostSlot -> hoveredHostSlot.scope() == hostSlotRef.scope()
+                && hoveredHostSlot.logicalSlotIndex() == hostSlotRef.logicalSlotIndex())
+            .orElse(false);
     }
 
     private static boolean hasAnyEnabledQuickOpenable() {

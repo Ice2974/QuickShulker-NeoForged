@@ -1,6 +1,7 @@
 package com.ice2974.quickshulkerneoforged.neoforge;
 
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
+import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -29,10 +30,14 @@ final class NeoForgeHostLockedMenuSupport {
         if (lockedMenuSlotIndex >= 0 && slotId == lockedMenuSlotIndex) {
             return true;
         }
-        if (clickType == ClickType.SWAP && button == PLAYER_OFFHAND_CONTAINER_SLOT) {
+        if (clickType != ClickType.SWAP) {
+            return false;
+        }
+        if (hostSlotRef.scope() == HostStorageScope.PLAYER_OFFHAND
+            && button == PLAYER_OFFHAND_CONTAINER_SLOT) {
             return true;
         }
-        return clickType == ClickType.SWAP && targetsLockedSwapButton(button, hostSlotRef);
+        return targetsLockedHotbarSwapButton(button, hostSlotRef);
     }
 
     static boolean isLockedHostSlot(Slot slot, Inventory playerInventory, HostSlotRef hostSlotRef) {
@@ -56,11 +61,8 @@ final class NeoForgeHostLockedMenuSupport {
         }
     }
 
-    private static boolean targetsLockedSwapButton(int button, HostSlotRef hostSlotRef) {
-        return switch (hostSlotRef.scope()) {
-            case PLAYER_HOTBAR -> button == hostSlotRef.logicalSlotIndex();
-            case PLAYER_OFFHAND -> button == PLAYER_OFFHAND_CONTAINER_SLOT;
-            default -> false;
-        };
+    private static boolean targetsLockedHotbarSwapButton(int button, HostSlotRef hostSlotRef) {
+        return hostSlotRef.scope() == HostStorageScope.PLAYER_HOTBAR
+            && button == hostSlotRef.logicalSlotIndex();
     }
 }
