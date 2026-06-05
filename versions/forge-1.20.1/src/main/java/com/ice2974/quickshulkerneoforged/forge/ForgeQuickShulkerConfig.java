@@ -14,6 +14,7 @@ public final class ForgeQuickShulkerConfig {
     private static final ForgeConfigSpec.BooleanValue RIGHT_CLICK_CLOSE;
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_MOUSE_DRAGGED;
     private static final ForgeConfigSpec.BooleanValue QUICK_SHULKER_BOX;
+    private static final ForgeConfigSpec.BooleanValue QUICK_ENDER_CHEST;
     private static final QuickShulkerConfigView VIEW = new ConfigView();
 
     static {
@@ -46,6 +47,9 @@ public final class ForgeQuickShulkerConfig {
         QUICK_SHULKER_BOX = builder
             .comment("Enable quick-open behavior for shulker boxes.")
             .define("quickShulkerBox", DEFAULTS.quickShulkerBox());
+        QUICK_ENDER_CHEST = builder
+            .comment("Enable quick-open behavior for ender chests.")
+            .define("quickEnderChest", DEFAULTS.quickEnderChest());
         builder.pop();
 
         SPEC = builder.build();
@@ -141,7 +145,7 @@ public final class ForgeQuickShulkerConfig {
 
         @Override
         public boolean quickEnderChest() {
-            return DEFAULTS.quickEnderChest();
+            return QUICK_ENDER_CHEST.get();
         }
 
         @Override

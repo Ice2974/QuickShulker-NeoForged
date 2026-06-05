@@ -354,3 +354,24 @@ NeoForge 1.21.1 拦截点：
 - `OpenHostItemIntent` 的防重入规则保持不变；当前 QuickShulker 菜单中仍不会发送新的打开请求。
 - 这次修复只覆盖 QuickShulker 菜单打开期间的副手交换，不扩展到末影箱同步、Bundle、工作台 / 切石机 / 铁砧，或鼠标拖拽批量行为。
 - 创造模式下 `CreativeModeInventoryScreen`、`SlotWrapper`、`CLONE` 等特殊路径虽然已被这次双端拦截显著收紧，但仍建议放到阶段 7 做专项实机验证。
+
+## 阶段 6A.5 追加记录：无界面手持右键入口
+
+阶段 6A.5 在本阶段文档基础上，又为 `shulker_box` 收口了“无界面手持右键打开”入口，关键点如下：
+
+- 继续复用现有 `OpenHostItemIntent -> 服务端重校验 -> active session 打开` 链路。
+- 客户端入口仍受以下配置共同控制：
+  - `quickShulkerBox`
+  - `rightClickToOpen`
+- 具体触发器为 `HAND_RIGHT_CLICK`。
+- 只在原版已经把这次右键判定为 item-use 分支时才发送请求，因此不会抢占：
+  - 对可交互方块的原版右键
+  - 对可交互实体的原版右键
+  - 对可放置位置的原版潜影盒放置
+- 服务端继续按 `HostSlotRef` 重新定位宿主，并要求：
+  - 当前物品仍是 `shulker_box`
+  - 数量仍为 1
+  - 当前玩家没有 active QuickShulker session
+- 当前 QuickShulker 菜单中仍不会再次发送新的 open 请求。
+
+阶段 6B 的 `ender_chest` 最小闭环继续直接复用这条 6A.5 无界面手持右键边界，不额外复制独立入口。

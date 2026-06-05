@@ -2,14 +2,16 @@ package com.ice2974.quickshulkerneoforged.forge;
 
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.ShulkerBoxMenu;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuickOpenMenu {
+public final class ForgeEnderChestMenu extends ChestMenu implements ForgeQuickOpenMenu {
     private static final int PLAYER_MAIN_INVENTORY_OFFSET = 9;
     private static final int PLAYER_OFFHAND_CONTAINER_SLOT = 40;
 
@@ -19,14 +21,14 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuick
     private final int lockedMenuSlotIndex;
     private boolean hostInvalidated;
 
-    public ForgeShulkerMenu(
+    public ForgeEnderChestMenu(
         int containerId,
         Inventory inventory,
-        ItemBackedShulkerContainer container,
+        Container enderChestInventory,
         ForgeShulkerSessionManager sessionManager,
         HostSlotRef hostSlotRef
     ) {
-        super(containerId, inventory, container);
+        super(MenuType.GENERIC_9x3, containerId, inventory, enderChestInventory, 3);
         this.sessionManager = sessionManager;
         this.playerInventory = inventory;
         this.hostSlotRef = hostSlotRef;
@@ -79,6 +81,7 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuick
         super.removed(player);
     }
 
+    @Override
     public void markHostInvalidated() {
         this.hostInvalidated = true;
     }

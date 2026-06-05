@@ -6,6 +6,7 @@ import com.ice2974.quickshulkerneoforged.common.open.HostItemReference;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenRequest;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
+import com.ice2974.quickshulkerneoforged.common.open.QuickOpenableType;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
@@ -13,24 +14,26 @@ public final class NeoForgeQuickOpenHandler {
     private NeoForgeQuickOpenHandler() {
     }
 
-    public static QuickOpenRequest createRequest(HostSlotRef hostSlot) {
+    public static QuickOpenRequest createRequest(String requestedTypeId, HostSlotRef hostSlot, QuickOpenTrigger trigger) {
         return new QuickOpenRequest(
-            BuiltinQuickOpenables.SHULKER_BOX.id(),
+            requestedTypeId,
             hostSlot,
-            QuickOpenTrigger.HAND_KEYBIND,
+            trigger,
             true,
             false
         );
     }
 
     public static void handle(ServerPlayer player, OpenHostItemIntent intent, NeoForgeShulkerSessionManager sessionManager) {
-        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()) {
-            return;
-        }
         if (!NeoForgeQuickShulkerConfig.view().allowsTrigger(intent.trigger())) {
             return;
         }
-        if (!BuiltinQuickOpenables.SHULKER_BOX.id().equals(intent.requestedTypeId())) {
+
+        QuickOpenableType requestedType = NeoForgeQuickOpenRegistry.registry()
+            .findType(intent.requestedTypeId())
+            .filter(type -> isSupportedType(type.id()))
+            .orElse(null);
+        if (requestedType == null || !NeoForgeQuickShulkerConfig.view().isEnabled(requestedType)) {
             return;
         }
 
@@ -41,7 +44,8 @@ public final class NeoForgeQuickOpenHandler {
 
         NeoForgeQuickOpenRegistry.registry()
             .findTypeForItem(NeoForgeItemSnapshots.snapshot(hostStack).itemKey())
-            .filter(type -> type.id().equals(intent.requestedTypeId()))
+            .filter(type -> isSupportedType(type.id()))
+            .filter(type -> type.id().equals(requestedType.id()))
             .ifPresent(type -> {
                 HostItemReference hostItemReference = new HostItemReference(
                     type.id(),
@@ -49,8 +53,13 @@ public final class NeoForgeQuickOpenHandler {
                     NeoForgeItemSnapshots.snapshot(hostStack.copy())
                 );
                 if (sessionManager.validateCurrentHost(player, hostItemReference).valid()) {
-                    sessionManager.open(player, hostItemReference);
+                    sessionManager.open(player, hostItemReference, intent.trigger());
                 }
             });
+    }
+
+    private static boolean isSupportedType(String typeId) {
+        return BuiltinQuickOpenables.SHULKER_BOX.id().equals(typeId)
+            || BuiltinQuickOpenables.ENDER_CHEST.id().equals(typeId);
     }
 }

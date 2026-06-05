@@ -2,14 +2,13 @@ package com.ice2974.quickshulkerneoforged.neoforge.client;
 
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.OpenHostItemIntent;
-import com.ice2974.quickshulkerneoforged.common.open.BuiltinQuickOpenables;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeHostSlotResolver;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeItemSnapshots;
+import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickOpenMenu;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickOpenRegistry;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickShulkerConfig;
-import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeShulkerMenu;
 import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeOpenHostItemPayload;
 import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeQuickShulkerNetwork;
 import net.minecraft.client.Minecraft;
@@ -39,7 +38,7 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
-        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()
+        if (!hasAnyEnabledQuickOpenable()
             || !NeoForgeQuickShulkerConfig.view().keybindInHand()) {
             return;
         }
@@ -60,7 +59,7 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenKeyPressed(ScreenEvent.KeyPressed.Pre event) {
-        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()) {
+        if (!hasAnyEnabledQuickOpenable()) {
             return;
         }
 
@@ -88,7 +87,7 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
-        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()
+        if (!hasAnyEnabledQuickOpenable()
             || !NeoForgeQuickShulkerConfig.view().rightClickInInventory()
             || !NeoForgeQuickShulkerConfig.view().rightClickToOpen()) {
             return;
@@ -107,7 +106,7 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onHandRightClick(PlayerInteractEvent.RightClickItem event) {
-        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()
+        if (!hasAnyEnabledQuickOpenable()
             || !NeoForgeQuickShulkerConfig.view().rightClickToOpen()) {
             return;
         }
@@ -145,7 +144,7 @@ public final class NeoForgeQuickShulkerClient {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return false;
         }
-        if (containerScreen.getMenu() instanceof NeoForgeShulkerMenu) {
+        if (containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu) {
             return false;
         }
         if (!containerScreen.getMenu().getCarried().isEmpty()) {
@@ -191,7 +190,6 @@ public final class NeoForgeQuickShulkerClient {
         return NeoForgeQuickOpenRegistry.registry()
             .findTypeForItem(NeoForgeItemSnapshots.snapshot(stack).itemKey())
             .filter(type -> NeoForgeQuickShulkerConfig.view().isEnabled(type))
-            .filter(type -> type.id().equals(BuiltinQuickOpenables.SHULKER_BOX.id()))
             .map(type -> type.id());
     }
 
@@ -203,9 +201,14 @@ public final class NeoForgeQuickShulkerClient {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return false;
         }
-        if (!(containerScreen.getMenu() instanceof NeoForgeShulkerMenu)) {
+        if (!(containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu)) {
             return false;
         }
         return minecraft.options.keySwapOffhand.matches(keyCode, scanCode);
+    }
+
+    private static boolean hasAnyEnabledQuickOpenable() {
+        return NeoForgeQuickShulkerConfig.view().quickShulkerBox()
+            || NeoForgeQuickShulkerConfig.view().quickEnderChest();
     }
 }

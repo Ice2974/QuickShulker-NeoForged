@@ -2,14 +2,13 @@ package com.ice2974.quickshulkerneoforged.forge.client;
 
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.OpenHostItemIntent;
-import com.ice2974.quickshulkerneoforged.common.open.BuiltinQuickOpenables;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import com.ice2974.quickshulkerneoforged.forge.ForgeHostSlotResolver;
 import com.ice2974.quickshulkerneoforged.forge.ForgeItemSnapshots;
+import com.ice2974.quickshulkerneoforged.forge.ForgeQuickOpenMenu;
 import com.ice2974.quickshulkerneoforged.forge.ForgeQuickOpenRegistry;
 import com.ice2974.quickshulkerneoforged.forge.ForgeQuickShulkerConfig;
-import com.ice2974.quickshulkerneoforged.forge.ForgeShulkerMenu;
 import com.ice2974.quickshulkerneoforged.forge.network.ForgeOpenHostItemPacket;
 import com.ice2974.quickshulkerneoforged.forge.network.ForgeQuickShulkerNetwork;
 import net.minecraft.client.gui.screens.Screen;
@@ -36,7 +35,7 @@ public final class ForgeQuickShulkerClient {
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END
-            || !ForgeQuickShulkerConfig.view().quickShulkerBox()
+            || !hasAnyEnabledQuickOpenable()
             || !ForgeQuickShulkerConfig.view().keybindInHand()) {
             return;
         }
@@ -57,7 +56,7 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenKeyPressed(ScreenEvent.KeyPressed.Pre event) {
-        if (!ForgeQuickShulkerConfig.view().quickShulkerBox()) {
+        if (!hasAnyEnabledQuickOpenable()) {
             return;
         }
 
@@ -84,7 +83,7 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
-        if (!ForgeQuickShulkerConfig.view().quickShulkerBox()
+        if (!hasAnyEnabledQuickOpenable()
             || !ForgeQuickShulkerConfig.view().rightClickInInventory()
             || !ForgeQuickShulkerConfig.view().rightClickToOpen()) {
             return;
@@ -103,7 +102,7 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onHandRightClick(PlayerInteractEvent.RightClickItem event) {
-        if (!ForgeQuickShulkerConfig.view().quickShulkerBox()
+        if (!hasAnyEnabledQuickOpenable()
             || !ForgeQuickShulkerConfig.view().rightClickToOpen()) {
             return;
         }
@@ -141,7 +140,7 @@ public final class ForgeQuickShulkerClient {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return false;
         }
-        if (containerScreen.getMenu() instanceof ForgeShulkerMenu) {
+        if (containerScreen.getMenu() instanceof ForgeQuickOpenMenu) {
             return false;
         }
         if (!containerScreen.getMenu().getCarried().isEmpty()) {
@@ -175,7 +174,6 @@ public final class ForgeQuickShulkerClient {
         return ForgeQuickOpenRegistry.registry()
             .findTypeForItem(ForgeItemSnapshots.snapshot(stack).itemKey())
             .filter(type -> ForgeQuickShulkerConfig.view().isEnabled(type))
-            .filter(type -> type.id().equals(BuiltinQuickOpenables.SHULKER_BOX.id()))
             .map(type -> type.id());
     }
 
@@ -187,9 +185,14 @@ public final class ForgeQuickShulkerClient {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return false;
         }
-        if (!(containerScreen.getMenu() instanceof ForgeShulkerMenu)) {
+        if (!(containerScreen.getMenu() instanceof ForgeQuickOpenMenu)) {
             return false;
         }
         return minecraft.options.keySwapOffhand.matches(keyCode, scanCode);
+    }
+
+    private static boolean hasAnyEnabledQuickOpenable() {
+        return ForgeQuickShulkerConfig.view().quickShulkerBox()
+            || ForgeQuickShulkerConfig.view().quickEnderChest();
     }
 }

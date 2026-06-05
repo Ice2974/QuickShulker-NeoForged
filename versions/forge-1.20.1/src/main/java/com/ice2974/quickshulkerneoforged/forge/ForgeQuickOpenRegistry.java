@@ -32,13 +32,18 @@ public final class ForgeQuickOpenRegistry {
         bind(registry, Items.GREEN_SHULKER_BOX);
         bind(registry, Items.RED_SHULKER_BOX);
         bind(registry, Items.BLACK_SHULKER_BOX);
+        bind(registry, Items.ENDER_CHEST, BuiltinQuickOpenables.ENDER_CHEST.id());
         return registry;
     }
 
     private static void bind(QuickOpenableRegistry registry, Item item) {
+        bind(registry, item, BuiltinQuickOpenables.SHULKER_BOX.id());
+    }
+
+    private static void bind(QuickOpenableRegistry registry, Item item, String typeId) {
         ResourceLocation id = ForgeRegistries.ITEMS.getKey(item);
         if (id != null) {
-            registry.bindItem(id.toString(), BuiltinQuickOpenables.SHULKER_BOX.id());
+            registry.bindItem(id.toString(), typeId);
         }
     }
 

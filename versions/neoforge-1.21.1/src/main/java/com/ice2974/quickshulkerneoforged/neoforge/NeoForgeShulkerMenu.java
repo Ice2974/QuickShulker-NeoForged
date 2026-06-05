@@ -9,7 +9,7 @@ import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-public final class NeoForgeShulkerMenu extends ShulkerBoxMenu {
+public final class NeoForgeShulkerMenu extends ShulkerBoxMenu implements NeoForgeQuickOpenMenu {
     private static final int PLAYER_MAIN_INVENTORY_OFFSET = 9;
     private static final int PLAYER_OFFHAND_CONTAINER_SLOT = Inventory.SLOT_OFFHAND;
 

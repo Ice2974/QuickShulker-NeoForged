@@ -1,32 +1,34 @@
-package com.ice2974.quickshulkerneoforged.forge;
+package com.ice2974.quickshulkerneoforged.neoforge;
 
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.ShulkerBoxMenu;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuickOpenMenu {
+public final class NeoForgeEnderChestMenu extends ChestMenu implements NeoForgeQuickOpenMenu {
     private static final int PLAYER_MAIN_INVENTORY_OFFSET = 9;
-    private static final int PLAYER_OFFHAND_CONTAINER_SLOT = 40;
+    private static final int PLAYER_OFFHAND_CONTAINER_SLOT = Inventory.SLOT_OFFHAND;
 
-    private final ForgeShulkerSessionManager sessionManager;
+    private final NeoForgeShulkerSessionManager sessionManager;
     private final Inventory playerInventory;
     private final HostSlotRef hostSlotRef;
     private final int lockedMenuSlotIndex;
     private boolean hostInvalidated;
 
-    public ForgeShulkerMenu(
+    public NeoForgeEnderChestMenu(
         int containerId,
         Inventory inventory,
-        ItemBackedShulkerContainer container,
-        ForgeShulkerSessionManager sessionManager,
+        Container enderChestInventory,
+        NeoForgeShulkerSessionManager sessionManager,
         HostSlotRef hostSlotRef
     ) {
-        super(containerId, inventory, container);
+        super(MenuType.GENERIC_9x3, containerId, inventory, enderChestInventory, 3);
         this.sessionManager = sessionManager;
         this.playerInventory = inventory;
         this.hostSlotRef = hostSlotRef;
@@ -79,6 +81,7 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuick
         super.removed(player);
     }
 
+    @Override
     public void markHostInvalidated() {
         this.hostInvalidated = true;
     }
@@ -102,11 +105,11 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuick
             return false;
         }
 
-        int containerSlot = slot.getSlotIndex();
+        int containerSlot = slot.getContainerSlot();
         return switch (hostSlotRef.scope()) {
             case PLAYER_HOTBAR -> containerSlot == hostSlotRef.logicalSlotIndex();
             case PLAYER_MAIN_INVENTORY -> containerSlot == PLAYER_MAIN_INVENTORY_OFFSET + hostSlotRef.logicalSlotIndex();
-            case PLAYER_OFFHAND -> containerSlot == PLAYER_OFFHAND_CONTAINER_SLOT;
+            case PLAYER_OFFHAND -> containerSlot == Inventory.SLOT_OFFHAND;
             default -> false;
         };
     }

@@ -42,6 +42,7 @@ public final class NeoForgeQuickOpenRegistry {
         for (Item item : SHULKER_BOX_ITEMS) {
             registry.bindItem(BuiltInRegistries.ITEM.getKey(item).toString(), BuiltinQuickOpenables.SHULKER_BOX.id());
         }
+        registry.bindItem(BuiltInRegistries.ITEM.getKey(Items.ENDER_CHEST).toString(), BuiltinQuickOpenables.ENDER_CHEST.id());
         return registry;
     }
 }

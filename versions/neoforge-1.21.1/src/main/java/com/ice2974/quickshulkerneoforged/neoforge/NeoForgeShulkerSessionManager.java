@@ -4,6 +4,8 @@ import com.ice2974.quickshulkerneoforged.common.open.DefaultHostItemValidator;
 import com.ice2974.quickshulkerneoforged.common.open.HostItemReference;
 import com.ice2974.quickshulkerneoforged.common.open.HostValidationMode;
 import com.ice2974.quickshulkerneoforged.common.open.HostValidationResult;
+import com.ice2974.quickshulkerneoforged.common.open.QuickOpenMenuKind;
+import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import com.ice2974.quickshulkerneoforged.common.session.CloseReason;
 import com.ice2974.quickshulkerneoforged.common.session.MenuOpenIntent;
 import com.ice2974.quickshulkerneoforged.common.session.OpenSession;
@@ -16,6 +18,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,11 +30,11 @@ public final class NeoForgeShulkerSessionManager {
     private final DefaultHostItemValidator validator = new DefaultHostItemValidator();
     private final Map<UUID, ActiveSession> sessions = new ConcurrentHashMap<>();
 
-    public void open(ServerPlayer player, HostItemReference hostItemReference) {
+    public void open(ServerPlayer player, HostItemReference hostItemReference, QuickOpenTrigger trigger) {
         ActiveSession existingSession = sessions.get(player.getUUID());
         if (existingSession != null) {
             LOGGER.debug(
-                "Rejected quick shulker open because an active session already exists: player={}, requestedHostSlot={}, activeHostSlot={}",
+                "Rejected quick-open request because an active session already exists: player={}, requestedHostSlot={}, activeHostSlot={}",
                 player.getScoreboardName(),
                 hostItemReference.slotRef(),
                 existingSession.hostItem().slotRef()
@@ -39,34 +42,13 @@ public final class NeoForgeShulkerSessionManager {
             return;
         }
 
-        ItemStack hostStack = NeoForgeHostSlotResolver.resolve(player, hostItemReference.slotRef());
-        ItemBackedShulkerContainer container = new ItemBackedShulkerContainer(contentAccess, hostStack);
-        OpenSession openSession = OpenSession.create(
-            NeoForgeQuickOpenHandler.createRequest(hostItemReference.slotRef()),
-            hostItemReference,
-            new MenuOpenIntent(
-                "pending",
-                hostItemReference.quickOpenableTypeId(),
-                com.ice2974.quickshulkerneoforged.common.open.QuickOpenMenuKind.SHULKER_BOX,
-                hostItemReference,
-                true,
-                false
-            ),
-            OpenSessionSafetyPolicy.strict()
-        );
-
-        final NeoForgeShulkerMenu[] holder = new NeoForgeShulkerMenu[1];
-        player.openMenu(new SimpleMenuProvider(
-            (containerId, inventory, serverPlayer) -> {
-                NeoForgeShulkerMenu menu = new NeoForgeShulkerMenu(containerId, inventory, container, this, hostItemReference.slotRef());
-                holder[0] = menu;
-                return menu;
-            },
-            hostStack.has(DataComponents.CUSTOM_NAME) ? hostStack.getHoverName() : Component.translatable("container.shulkerBox")
-        ));
-
-        if (holder[0] != null) {
-            sessions.put(player.getUUID(), new ActiveSession(openSession, hostItemReference, holder[0], container, CloseReason.PLAYER_CLOSED));
+        ActiveSession session = switch (hostItemReference.quickOpenableTypeId()) {
+            case "shulker_box" -> openShulkerSession(player, hostItemReference, trigger);
+            case "ender_chest" -> openEnderChestSession(player, hostItemReference, trigger);
+            default -> null;
+        };
+        if (session != null) {
+            sessions.put(player.getUUID(), session);
         }
     }
 
@@ -81,22 +63,24 @@ public final class NeoForgeShulkerSessionManager {
         }
         HostValidationResult validation = validateCurrentHost(player, session.hostItem());
         if (!validation.valid()) {
-            session.menu().markHostInvalidated();
+            if (session.menu() instanceof NeoForgeQuickOpenMenu quickOpenMenu) {
+                quickOpenMenu.markHostInvalidated();
+            }
             sessions.put(player.getUUID(), session.withCloseReason(CloseReason.HOST_INVALIDATED));
-            LOGGER.debug("Closing quick shulker menu because host became invalid: {}", validation.failure());
+            LOGGER.debug("Closing quick-open menu because host became invalid: {}", validation.failure());
             player.closeContainer();
         }
     }
 
-    public void finishSession(ServerPlayer player, NeoForgeShulkerMenu menu) {
+    public void finishSession(ServerPlayer player, AbstractContainerMenu menu) {
         finishSession(player, menu, CloseReason.PLAYER_CLOSED, "menu_removed");
     }
 
-    public void finishSession(ServerPlayer player, NeoForgeShulkerMenu menu, CloseReason closeReason) {
+    public void finishSession(ServerPlayer player, AbstractContainerMenu menu, CloseReason closeReason) {
         finishSession(player, menu, closeReason, "unspecified");
     }
 
-    public void finishSession(ServerPlayer player, NeoForgeShulkerMenu menu, CloseReason closeReason, String source) {
+    public void finishSession(ServerPlayer player, AbstractContainerMenu menu, CloseReason closeReason, String source) {
         ActiveSession session = sessions.get(player.getUUID());
         if (session == null) {
             return;
@@ -114,24 +98,25 @@ public final class NeoForgeShulkerSessionManager {
             session = session.withCloseReason(CloseReason.HOST_INVALIDATED);
         }
 
-        OpenSession evaluatedSession = session.container().isDirty() ? session.openSession().markDirty() : session.openSession();
+        OpenSession evaluatedSession = session.isDirty() ? session.openSession().markDirty() : session.openSession();
         SaveDisposition disposition = decideSaveDisposition(validation, session.closeReason());
         boolean wroteContents = false;
 
-        if (disposition == SaveDisposition.SAVE_TO_HOST) {
+        if (disposition == SaveDisposition.SAVE_TO_HOST && session.shouldWriteBackToHost()) {
             ItemStack hostStack = NeoForgeHostSlotResolver.resolve(player, session.hostItem().slotRef());
-            contentAccess.writeItemStacks(hostStack, session.container().copyContents());
+            contentAccess.writeItemStacks(hostStack, session.shulkerContainer().copyContents());
             wroteContents = true;
-        } else {
+        } else if (disposition != SaveDisposition.SAVE_TO_HOST) {
             LOGGER.debug("Discarded quick shulker changes: {}", disposition);
         }
 
         LOGGER.debug(
-            "Finished quick shulker session via source={}, closeReason={}, valid={}, dirty={}, disposition={}, wroteContents={}, sessionState={}",
+            "Finished quick-open session via source={}, type={}, closeReason={}, valid={}, dirty={}, disposition={}, wroteContents={}, sessionState={}",
             source,
+            session.hostItem().quickOpenableTypeId(),
             session.closeReason(),
             validation.valid(),
-            session.container().isDirty(),
+            session.isDirty(),
             disposition,
             wroteContents,
             evaluatedSession.state()
@@ -180,15 +165,109 @@ public final class NeoForgeShulkerSessionManager {
         return SaveDisposition.DISCARD_CHANGES;
     }
 
+    private ActiveSession openShulkerSession(ServerPlayer player, HostItemReference hostItemReference, QuickOpenTrigger trigger) {
+        ItemStack hostStack = NeoForgeHostSlotResolver.resolve(player, hostItemReference.slotRef());
+        ItemBackedShulkerContainer container = new ItemBackedShulkerContainer(contentAccess, hostStack);
+        OpenSession openSession = createOpenSession(hostItemReference, trigger, QuickOpenMenuKind.SHULKER_BOX);
+
+        final NeoForgeShulkerMenu[] holder = new NeoForgeShulkerMenu[1];
+        player.openMenu(new SimpleMenuProvider(
+            (containerId, inventory, serverPlayer) -> {
+                NeoForgeShulkerMenu menu = new NeoForgeShulkerMenu(containerId, inventory, container, this, hostItemReference.slotRef());
+                holder[0] = menu;
+                return menu;
+            },
+            hostStack.has(DataComponents.CUSTOM_NAME) ? hostStack.getHoverName() : Component.translatable("container.shulkerBox")
+        ));
+
+        if (holder[0] == null) {
+            return null;
+        }
+        return ActiveSession.forShulker(openSession, hostItemReference, holder[0], container, CloseReason.PLAYER_CLOSED);
+    }
+
+    private ActiveSession openEnderChestSession(ServerPlayer player, HostItemReference hostItemReference, QuickOpenTrigger trigger) {
+        OpenSession openSession = createOpenSession(hostItemReference, trigger, QuickOpenMenuKind.ENDER_CHEST);
+
+        final NeoForgeEnderChestMenu[] holder = new NeoForgeEnderChestMenu[1];
+        player.openMenu(new SimpleMenuProvider(
+            (containerId, inventory, serverPlayer) -> {
+                NeoForgeEnderChestMenu menu = new NeoForgeEnderChestMenu(
+                    containerId,
+                    inventory,
+                    serverPlayer.getEnderChestInventory(),
+                    this,
+                    hostItemReference.slotRef()
+                );
+                holder[0] = menu;
+                return menu;
+            },
+            Component.translatable("container.enderchest")
+        ));
+
+        if (holder[0] == null) {
+            return null;
+        }
+        return ActiveSession.forTransient(openSession, hostItemReference, holder[0], CloseReason.PLAYER_CLOSED);
+    }
+
+    private static OpenSession createOpenSession(
+        HostItemReference hostItemReference,
+        QuickOpenTrigger trigger,
+        QuickOpenMenuKind menuKind
+    ) {
+        return OpenSession.create(
+            NeoForgeQuickOpenHandler.createRequest(hostItemReference.quickOpenableTypeId(), hostItemReference.slotRef(), trigger),
+            hostItemReference,
+            new MenuOpenIntent(
+                "pending",
+                hostItemReference.quickOpenableTypeId(),
+                menuKind,
+                hostItemReference,
+                true,
+                false
+            ),
+            OpenSessionSafetyPolicy.strict()
+        );
+    }
+
     private record ActiveSession(
         OpenSession openSession,
         HostItemReference hostItem,
-        NeoForgeShulkerMenu menu,
-        ItemBackedShulkerContainer container,
+        AbstractContainerMenu menu,
+        ItemBackedShulkerContainer shulkerContainer,
+        boolean writeBackToHost,
         CloseReason closeReason
     ) {
+        private static ActiveSession forShulker(
+            OpenSession openSession,
+            HostItemReference hostItem,
+            AbstractContainerMenu menu,
+            ItemBackedShulkerContainer shulkerContainer,
+            CloseReason closeReason
+        ) {
+            return new ActiveSession(openSession, hostItem, menu, shulkerContainer, true, closeReason);
+        }
+
+        private static ActiveSession forTransient(
+            OpenSession openSession,
+            HostItemReference hostItem,
+            AbstractContainerMenu menu,
+            CloseReason closeReason
+        ) {
+            return new ActiveSession(openSession, hostItem, menu, null, false, closeReason);
+        }
+
         private ActiveSession withCloseReason(CloseReason nextReason) {
-            return new ActiveSession(openSession, hostItem, menu, container, nextReason);
+            return new ActiveSession(openSession, hostItem, menu, shulkerContainer, writeBackToHost, nextReason);
+        }
+
+        private boolean shouldWriteBackToHost() {
+            return writeBackToHost && shulkerContainer != null;
+        }
+
+        private boolean isDirty() {
+            return shulkerContainer != null && shulkerContainer.isDirty();
         }
     }
 }
