@@ -1,9 +1,15 @@
 package com.ice2974.quickshulkerneoforged.forge.client;
 
+import com.ice2974.quickshulkerneoforged.common.open.BuiltinQuickOpenables;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import com.ice2974.quickshulkerneoforged.forge.ForgeQuickOpenMenu;
+import net.minecraft.client.gui.screens.inventory.AnvilScreen;
+import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.client.gui.screens.inventory.CraftingScreen;
+import net.minecraft.client.gui.screens.inventory.ShulkerBoxScreen;
+import net.minecraft.client.gui.screens.inventory.StonecutterScreen;
+import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.lwjgl.glfw.GLFW;
@@ -92,9 +98,27 @@ final class ForgeQuickOpenMouseRestore {
     }
 
     private static boolean isExpectedQuickOpenScreen(Screen screen, String requestedTypeId) {
-        return screen instanceof AbstractContainerScreen<?> containerScreen
-            && containerScreen.getMenu() instanceof ForgeQuickOpenMenu quickOpenMenu
-            && requestedTypeId.equals(quickOpenMenu.quickOpenableTypeId());
+        if (BuiltinQuickOpenables.SHULKER_BOX.id().equals(requestedTypeId)) {
+            return screen instanceof ShulkerBoxScreen;
+        }
+        if (BuiltinQuickOpenables.ENDER_CHEST.id().equals(requestedTypeId)) {
+            return screen instanceof ContainerScreen
+                && matchesTitle(screen, Component.translatable("container.enderchest"));
+        }
+        if (BuiltinQuickOpenables.CRAFTING_TABLE.id().equals(requestedTypeId)) {
+            return screen instanceof CraftingScreen;
+        }
+        if (BuiltinQuickOpenables.STONECUTTER.id().equals(requestedTypeId)) {
+            return screen instanceof StonecutterScreen;
+        }
+        if (BuiltinQuickOpenables.ANVIL.id().equals(requestedTypeId)) {
+            return screen instanceof AnvilScreen;
+        }
+        return false;
+    }
+
+    private static boolean matchesTitle(Screen screen, Component expectedTitle) {
+        return screen != null && screen.getTitle().getString().equals(expectedTitle.getString());
     }
 
     private record PendingRestore(double mouseX, double mouseY, Screen sourceScreen, String requestedTypeId, int remainingTicks) {
