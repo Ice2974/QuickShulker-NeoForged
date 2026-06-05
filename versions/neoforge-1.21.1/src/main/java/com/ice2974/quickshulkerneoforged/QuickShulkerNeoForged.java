@@ -1,11 +1,14 @@
 package com.ice2974.quickshulkerneoforged;
 
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickShulkerConfig;
+import com.ice2974.quickshulkerneoforged.neoforge.client.NeoForgeClientBootstrap;
 import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeQuickShulkerNetwork;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +19,9 @@ public final class QuickShulkerNeoForged {
     public QuickShulkerNeoForged(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, NeoForgeQuickShulkerConfig.SPEC);
         modEventBus.addListener(NeoForgeQuickShulkerNetwork::register);
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            NeoForgeClientBootstrap.register(modEventBus);
+        }
         LOGGER.info(QuickShulkerCommon.bootstrapMessage("NeoForge", "1.21.1"));
     }
 }

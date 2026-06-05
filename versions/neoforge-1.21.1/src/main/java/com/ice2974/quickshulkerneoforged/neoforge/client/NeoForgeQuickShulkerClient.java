@@ -38,7 +38,8 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
-        if (!NeoForgeQuickShulkerConfig.view().keybindInHand()) {
+        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()
+            || !NeoForgeQuickShulkerConfig.view().keybindInHand()) {
             return;
         }
 
@@ -57,7 +58,8 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenKeyPressed(ScreenEvent.KeyPressed.Pre event) {
-        if (!NeoForgeQuickShulkerConfig.view().keybindInInventory()) {
+        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()
+            || !NeoForgeQuickShulkerConfig.view().keybindInInventory()) {
             return;
         }
 
@@ -75,7 +77,9 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
-        if (!NeoForgeQuickShulkerConfig.view().rightClickInInventory() || !NeoForgeQuickShulkerConfig.view().rightClickToOpen()) {
+        if (!NeoForgeQuickShulkerConfig.view().quickShulkerBox()
+            || !NeoForgeQuickShulkerConfig.view().rightClickInInventory()
+            || !NeoForgeQuickShulkerConfig.view().rightClickToOpen()) {
             return;
         }
 
@@ -157,6 +161,7 @@ public final class NeoForgeQuickShulkerClient {
     private static Optional<String> resolveTypeId(ItemStack stack) {
         return NeoForgeQuickOpenRegistry.registry()
             .findTypeForItem(NeoForgeItemSnapshots.snapshot(stack).itemKey())
+            .filter(type -> NeoForgeQuickShulkerConfig.view().isEnabled(type))
             .filter(type -> type.id().equals(BuiltinQuickOpenables.SHULKER_BOX.id()))
             .map(type -> type.id());
     }

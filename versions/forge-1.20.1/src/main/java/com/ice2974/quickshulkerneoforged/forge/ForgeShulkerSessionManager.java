@@ -140,6 +140,14 @@ public final class ForgeShulkerSessionManager {
         finishSession(player, null, CloseReason.PLAYER_DISCONNECTED, "player_logged_out");
     }
 
+    public void finishSessionOnDeath(ServerPlayer player) {
+        finishSession(player, null, CloseReason.PLAYER_DIED, "player_respawned");
+    }
+
+    public void finishSessionOnDimensionChange(ServerPlayer player) {
+        finishSession(player, null, CloseReason.DIMENSION_CHANGED, "player_changed_dimension");
+    }
+
     public HostValidationResult validateCurrentHost(ServerPlayer player, HostItemReference hostItemReference) {
         ItemStack currentStack = ForgeHostSlotResolver.resolve(player, hostItemReference.slotRef());
         return validator.validate(

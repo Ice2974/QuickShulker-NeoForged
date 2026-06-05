@@ -34,7 +34,9 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || !ForgeQuickShulkerConfig.view().keybindInHand()) {
+        if (event.phase != TickEvent.Phase.END
+            || !ForgeQuickShulkerConfig.view().quickShulkerBox()
+            || !ForgeQuickShulkerConfig.view().keybindInHand()) {
             return;
         }
 
@@ -53,7 +55,8 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenKeyPressed(ScreenEvent.KeyPressed.Pre event) {
-        if (!ForgeQuickShulkerConfig.view().keybindInInventory()) {
+        if (!ForgeQuickShulkerConfig.view().quickShulkerBox()
+            || !ForgeQuickShulkerConfig.view().keybindInInventory()) {
             return;
         }
 
@@ -71,7 +74,9 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
-        if (!ForgeQuickShulkerConfig.view().rightClickInInventory() || !ForgeQuickShulkerConfig.view().rightClickToOpen()) {
+        if (!ForgeQuickShulkerConfig.view().quickShulkerBox()
+            || !ForgeQuickShulkerConfig.view().rightClickInInventory()
+            || !ForgeQuickShulkerConfig.view().rightClickToOpen()) {
             return;
         }
 
@@ -141,6 +146,7 @@ public final class ForgeQuickShulkerClient {
     private static Optional<String> resolveTypeId(ItemStack stack) {
         return ForgeQuickOpenRegistry.registry()
             .findTypeForItem(ForgeItemSnapshots.snapshot(stack).itemKey())
+            .filter(type -> ForgeQuickShulkerConfig.view().isEnabled(type))
             .filter(type -> type.id().equals(BuiltinQuickOpenables.SHULKER_BOX.id()))
             .map(type -> type.id());
     }

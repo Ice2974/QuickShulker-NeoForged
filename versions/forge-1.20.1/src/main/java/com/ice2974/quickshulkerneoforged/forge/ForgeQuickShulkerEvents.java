@@ -25,4 +25,18 @@ public final class ForgeQuickShulkerEvents {
             ForgeServices.SHULKER_SESSIONS.finishSessionOnDisconnect(serverPlayer);
         }
     }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            ForgeServices.SHULKER_SESSIONS.finishSessionOnDeath(serverPlayer);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            ForgeServices.SHULKER_SESSIONS.finishSessionOnDimensionChange(serverPlayer);
+        }
+    }
 }

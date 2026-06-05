@@ -1,6 +1,7 @@
 package com.ice2974.quickshulkerneoforged.common.config;
 
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenConfigGate;
+import com.ice2974.quickshulkerneoforged.common.open.QuickOpenableType;
 
 public interface QuickShulkerConfigView {
     KeyBindingSpec activationKey();
@@ -47,5 +48,9 @@ public interface QuickShulkerConfigView {
             case QUICK_STONECUTTER -> quickStonecutter();
             case QUICK_ANVIL -> quickAnvil();
         };
+    }
+
+    default boolean isEnabled(QuickOpenableType type) {
+        return isEnabled(type.configGate());
     }
 }
