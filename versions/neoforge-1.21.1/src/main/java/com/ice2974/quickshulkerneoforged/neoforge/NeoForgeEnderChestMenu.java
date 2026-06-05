@@ -1,5 +1,6 @@
 package com.ice2974.quickshulkerneoforged.neoforge;
 
+import com.ice2974.quickshulkerneoforged.common.open.BuiltinQuickOpenables;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
@@ -84,6 +85,16 @@ public final class NeoForgeEnderChestMenu extends ChestMenu implements NeoForgeQ
     @Override
     public void markHostInvalidated() {
         this.hostInvalidated = true;
+    }
+
+    @Override
+    public HostSlotRef hostSlotRef() {
+        return hostSlotRef;
+    }
+
+    @Override
+    public String quickOpenableTypeId() {
+        return BuiltinQuickOpenables.ENDER_CHEST.id();
     }
 
     private boolean shouldBlockHostSlotClick(int slotId, int button, ClickType clickType) {

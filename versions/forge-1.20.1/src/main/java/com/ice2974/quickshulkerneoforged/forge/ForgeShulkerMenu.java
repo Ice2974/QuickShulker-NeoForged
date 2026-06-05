@@ -1,5 +1,6 @@
 package com.ice2974.quickshulkerneoforged.forge;
 
+import com.ice2974.quickshulkerneoforged.common.open.BuiltinQuickOpenables;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -81,6 +82,16 @@ public final class ForgeShulkerMenu extends ShulkerBoxMenu implements ForgeQuick
 
     public void markHostInvalidated() {
         this.hostInvalidated = true;
+    }
+
+    @Override
+    public HostSlotRef hostSlotRef() {
+        return hostSlotRef;
+    }
+
+    @Override
+    public String quickOpenableTypeId() {
+        return BuiltinQuickOpenables.SHULKER_BOX.id();
     }
 
     private boolean shouldBlockHostSlotClick(int slotId, int button, ClickType clickType) {

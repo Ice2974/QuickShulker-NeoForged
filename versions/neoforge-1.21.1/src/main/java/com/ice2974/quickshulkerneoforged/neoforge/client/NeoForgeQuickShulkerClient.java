@@ -144,9 +144,6 @@ public final class NeoForgeQuickShulkerClient {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return false;
         }
-        if (containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu) {
-            return false;
-        }
         if (!containerScreen.getMenu().getCarried().isEmpty()) {
             return false;
         }
@@ -178,9 +175,14 @@ public final class NeoForgeQuickShulkerClient {
             return false;
         }
 
+        HostSlotRef requestedHostSlot = hostSlot.get();
         return resolveTypeId(stack)
             .map(typeId -> {
-                sendIntent(new OpenHostItemIntent(typeId, hostSlot.get(), trigger));
+                if (containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu quickOpenMenu
+                    && quickOpenMenu.isSameHost(typeId, requestedHostSlot)) {
+                    return false;
+                }
+                sendIntent(new OpenHostItemIntent(typeId, requestedHostSlot, trigger));
                 return true;
             })
             .orElse(false);

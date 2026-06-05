@@ -1,6 +1,7 @@
 package com.ice2974.quickshulkerneoforged.forge;
 
 import com.ice2974.quickshulkerneoforged.common.open.DefaultHostItemValidator;
+import com.ice2974.quickshulkerneoforged.common.open.HostIdentity;
 import com.ice2974.quickshulkerneoforged.common.open.HostItemReference;
 import com.ice2974.quickshulkerneoforged.common.open.HostValidationMode;
 import com.ice2974.quickshulkerneoforged.common.open.HostValidationResult;
@@ -32,13 +33,36 @@ public final class ForgeShulkerSessionManager {
     public void open(ServerPlayer player, HostItemReference hostItemReference, QuickOpenTrigger trigger) {
         ActiveSession existingSession = sessions.get(player.getUUID());
         if (existingSession != null) {
+            if (sameHost(existingSession.hostItem(), hostItemReference)) {
+                LOGGER.debug(
+                    "Rejected duplicate quick-open request for the same host: player={}, requestedType={}, requestedHostSlot={}, activeType={}, activeHostSlot={}",
+                    player.getScoreboardName(),
+                    hostItemReference.quickOpenableTypeId(),
+                    hostItemReference.slotRef(),
+                    existingSession.hostItem().quickOpenableTypeId(),
+                    existingSession.hostItem().slotRef()
+                );
+                return;
+            }
+
             LOGGER.debug(
-                "Rejected quick-open request because an active session already exists: player={}, requestedHostSlot={}, activeHostSlot={}",
+                "Switching quick-open host: player={}, fromType={}, fromHostSlot={}, toType={}, toHostSlot={}",
                 player.getScoreboardName(),
-                hostItemReference.slotRef(),
-                existingSession.hostItem().slotRef()
+                existingSession.hostItem().quickOpenableTypeId(),
+                existingSession.hostItem().slotRef(),
+                hostItemReference.quickOpenableTypeId(),
+                hostItemReference.slotRef()
             );
-            return;
+            finishSession(player, existingSession.menu(), CloseReason.PLAYER_CLOSED, "switch_open");
+            if (!validateCurrentHost(player, hostItemReference).valid()) {
+                LOGGER.debug(
+                    "Rejected quick-open switch because requested host became invalid after finishing current session: player={}, requestedType={}, requestedHostSlot={}",
+                    player.getScoreboardName(),
+                    hostItemReference.quickOpenableTypeId(),
+                    hostItemReference.slotRef()
+                );
+                return;
+            }
         }
 
         ActiveSession session = switch (hostItemReference.quickOpenableTypeId()) {
@@ -162,6 +186,10 @@ public final class ForgeShulkerSessionManager {
             return SaveDisposition.SAVE_TO_HOST;
         }
         return SaveDisposition.DISCARD_CHANGES;
+    }
+
+    private static boolean sameHost(HostItemReference existingHostItem, HostItemReference requestedHostItem) {
+        return HostIdentity.sameHost(existingHostItem, requestedHostItem);
     }
 
     private ActiveSession openShulkerSession(ServerPlayer player, HostItemReference hostItemReference, QuickOpenTrigger trigger) {
