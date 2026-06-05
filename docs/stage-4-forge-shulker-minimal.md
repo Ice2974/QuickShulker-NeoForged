@@ -53,7 +53,7 @@
 - `HostItemValidator` / `DefaultHostItemValidator`
 - `ContainerContentAccess`
 - `MenuOpenIntent`
-- `OpenSession` / `OpenSessionRules`
+- `OpenSession`
 - `OpenHostItemIntent`
 
 ## 潜影盒内容保存路径
@@ -73,7 +73,7 @@
   - 宿主类型变化
   - 宿主堆叠数不再为 `1`
 - 则服务端关闭菜单
-- 关闭时按 `OpenSessionRules` 走保守分支，放弃写回，避免把内容写到错误目标
+- 关闭时按服务端会话收尾逻辑走保守分支，放弃写回，避免把内容写到错误目标
 
 ## 阶段 4 关闭保存路径 bug 修复
 
@@ -94,7 +94,7 @@
 - 某些关闭方式会先让服务端当前 `containerMenu` 切回别的菜单，再由后续收尾逻辑处理
 - 初版 `ForgeShulkerSessionManager.tick()` 在发现 `player.containerMenu != session.menu()` 时直接返回，没有把这类“菜单已切换但会话仍存在”的情况统一收口
 - 同时，阶段 4 的 `finishSession()` 只有在 `session.container().isDirty()` 为真时，才会把 `OpenSession` 标记为 dirty
-- `OpenSessionRules` 又会把“未标记 dirty”的情况直接判成 `NO_CHANGES`
+- 早期的通用会话规则曾把“未标记 dirty”的情况直接判成 `NO_CHANGES`
 - 但 `ItemBackedShulkerContainer.dirty` 只是依赖 `setChanged()`，并不适合作为 item-backed shulker menu 是否需要最终写回的硬性前提
 - 另外，空盒子保存场景还暴露出一个 Forge 1.20.1 NBT 细节：
   - 如果基于旧 `BlockEntityTag` 副本直接 `saveAllItems(...)`

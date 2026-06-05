@@ -11,6 +11,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 public record NeoForgeOpenHostItemPayload(OpenHostItemIntent intent) implements CustomPacketPayload {
+    private static final int MAX_TEXT_FIELD_LENGTH = 64;
+
     public static final Type<NeoForgeOpenHostItemPayload> TYPE =
         new Type<>(ResourceLocation.fromNamespaceAndPath(QuickShulkerConstants.MOD_ID, OpenHostItemIntent.CHANNEL_ID));
     public static final StreamCodec<RegistryFriendlyByteBuf, NeoForgeOpenHostItemPayload> STREAM_CODEC =
@@ -18,9 +20,9 @@ public record NeoForgeOpenHostItemPayload(OpenHostItemIntent intent) implements 
 
     public static NeoForgeOpenHostItemPayload decode(RegistryFriendlyByteBuf buf) {
         return new NeoForgeOpenHostItemPayload(new OpenHostItemIntent(
-            buf.readUtf(),
-            new HostSlotRef(HostStorageScope.valueOf(buf.readUtf()), buf.readVarInt(), buf.readVarInt()),
-            QuickOpenTrigger.valueOf(buf.readUtf())
+            buf.readUtf(MAX_TEXT_FIELD_LENGTH),
+            new HostSlotRef(HostStorageScope.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH)), buf.readVarInt(), buf.readVarInt()),
+            QuickOpenTrigger.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH))
         ));
     }
 

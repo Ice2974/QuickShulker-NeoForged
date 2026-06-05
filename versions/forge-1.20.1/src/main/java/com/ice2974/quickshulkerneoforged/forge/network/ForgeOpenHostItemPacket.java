@@ -7,11 +7,13 @@ import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import net.minecraft.network.FriendlyByteBuf;
 
 public record ForgeOpenHostItemPacket(OpenHostItemIntent intent) {
+    private static final int MAX_TEXT_FIELD_LENGTH = 64;
+
     public static ForgeOpenHostItemPacket decode(FriendlyByteBuf buf) {
         return new ForgeOpenHostItemPacket(new OpenHostItemIntent(
-            buf.readUtf(),
-            new HostSlotRef(HostStorageScope.valueOf(buf.readUtf()), buf.readVarInt(), buf.readVarInt()),
-            QuickOpenTrigger.valueOf(buf.readUtf())
+            buf.readUtf(MAX_TEXT_FIELD_LENGTH),
+            new HostSlotRef(HostStorageScope.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH)), buf.readVarInt(), buf.readVarInt()),
+            QuickOpenTrigger.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH))
         ));
     }
 

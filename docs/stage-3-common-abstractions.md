@@ -223,7 +223,6 @@
 - `common/.../session/OpenSessionSafetyPolicy.java`
 - `common/.../session/CloseReason.java`
 - `common/.../session/SaveDisposition.java`
-- `common/.../session/OpenSessionRules.java`
 
 作用：
 
@@ -238,11 +237,11 @@
 - 若宿主失效，可丢弃脏改动
 - 若是主动回到玩家背包，可由平台决定发送 reopen inventory
 
-`OpenSessionRules` 当前给出的默认边界：
+当前保存语义已在平台侧会话管理器内收口：
 
-- 未产生改动时：`NO_CHANGES`
+- 正常关闭且宿主仍有效时：`SAVE_TO_HOST`
 - 宿主失效或校验拒绝时：`DISCARD_CHANGES`
-- 其他正常关闭：`SAVE_TO_HOST`
+- `dirty` 仅保留给日志或调试观察，不再作为保存硬前置
 
 对应阶段 2 需求：
 
