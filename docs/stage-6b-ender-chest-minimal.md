@@ -19,7 +19,7 @@
   - 当前物品仍是末影箱
   - 数量仍为 1
   - 当前物品经服务端 registry 解析后仍是 `ender_chest`
-  - 当前玩家没有 active QuickShulker session
+  - 当前玩家如已有 active session，会先判断 same-host；同宿主拒绝，不同宿主先安全收尾再重校验打开
 - 服务端使用玩家自己的 `EnderChestInventory` / `PlayerEnderChestContainer` 打开 9x3 末影箱菜单。
 - 打开期间继续锁定宿主槽位，防止左键、右键、`shift-click`、数字键交换、`Q`、`F`、`PICKUP_ALL`、`QUICK_CRAFT` 等操作移动宿主末影箱。
 - 宿主失效时，服务端会保守关闭当前 quick-open 菜单。
@@ -91,9 +91,9 @@
 
 ## 重复打开保护
 
-- 客户端：当前菜单只要是 QuickShulker 管理的菜单，就不再发送新的 open 请求。
-- 服务端：仍只维护同一玩家一个 active session。
-- `ender_chest` 与 `shulker_box` 共用同一套 active session 防重入管理，不允许同一玩家同时打开两个 quick-open 页面。
+- 客户端：当前菜单中如果目标还是同一宿主，会直接拒绝重复打开；如果目标是不同宿主，则允许继续发送切换请求。
+- 服务端：仍只维护同一玩家一个 active session，但不会“一有 active session 就拒绝全部请求”。
+- `ender_chest` 与 `shulker_box` 共用同一套 active session 管理：同一宿主重复打开拒绝，不同宿主先安全收尾旧 session，再重校验并打开新宿主。
 
 ## 已知风险
 

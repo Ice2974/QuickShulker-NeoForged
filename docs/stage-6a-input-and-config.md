@@ -56,14 +56,15 @@ Forge 1.20.1 与 NeoForge 1.21.1 当前都支持以下 `shulker_box` 入口：
 - `rightClickClose` 本阶段只保留配置项，不实现“再次右键关闭”
 - `supportsMouseDragged` 本阶段只保留配置项，不实现拖拽批量行为
 
-### 当前菜单内禁止重复 open
+### 当前菜单内重复 open 与切换规则
 
-阶段 5.5 的行为保持不变：
+在当前实现中，QuickShulker 菜单内已经不是“完全不能再次 open”，而是：
 
-- 当前菜单已经是 `ForgeShulkerMenu` / `NeoForgeShulkerMenu` 时，客户端不会再次发送新的 `OpenHostItemIntent`
-- 服务端已有 active session 时，`open(...)` 直接拒绝新请求
-- 不会创建第二个 `ItemBackedShulkerContainer`
-- 不会覆盖既有 session
+- 同一宿主重复打开时，客户端会先用 `isSameHost(...)` 拦掉明显重复请求；服务端也会再次按 `sameHost(...)` 拒绝
+- 不同宿主允许继续发起打开请求
+- 服务端已有 active session 时，会先安全收尾当前 session，再重新校验目标宿主是否仍然有效
+- 只有新宿主在收尾后仍然有效时，才会真正打开新菜单
+- 切换过程中仍然保持单 session，不会创建两个互不相通的容器副本，也不会覆盖成两个并存页面
 
 ### 宿主锁定与关闭保存保持不回退
 
@@ -227,8 +228,11 @@ NeoForge 1.21.1 当前使用：
 
 双平台都保持以下结构：
 
-- 客户端在当前 QuickShulker 菜单内不再发起新的打开请求
-- 服务端 session manager 发现已有 active session 时直接拒绝新请求
+- 客户端在当前 QuickShulker 菜单内不会对“同一宿主”再次发起新的打开请求
+- 客户端只会拒绝“同一宿主”的重复打开；不同宿主仍可发起切换请求
+- 服务端 session manager 在已有 active session 时会先判断 `sameHost`
+- `sameHost = true` 时拒绝重复打开
+- `sameHost = false` 时先复用既有关闭路径安全收尾当前 session，再重新校验并打开新宿主
 - `ForgeShulkerMenu` / `NeoForgeShulkerMenu` 继续锁定宿主菜单槽位
 - `clicked(...)`、`quickMoveStack(...)`、`canDragTo(...)`、`canTakeItemForPickAll(...)` 继续阻止对宿主的危险操作
 - 每 tick 继续重新校验宿主是否仍然有效；失效时关闭并丢弃改动
@@ -359,7 +363,7 @@ NeoForge 1.21.1 拦截点：
 
 阶段 6A.5 在本阶段文档基础上，又为 `shulker_box` 收口了“无界面手持右键打开”入口，关键点如下：
 
-- 继续复用现有 `OpenHostItemIntent -> 服务端重校验 -> active session 打开` 链路。
+- 继续复用现有 `OpenHostItemIntent -> 服务端重校验 -> active session 同宿主拒绝 / 异宿主安全切换` 链路。
 - 客户端入口仍受以下配置共同控制：
   - `quickShulkerBox`
   - `rightClickToOpen`
@@ -371,8 +375,8 @@ NeoForge 1.21.1 拦截点：
 - 服务端继续按 `HostSlotRef` 重新定位宿主，并要求：
   - 当前物品仍是 `shulker_box`
   - 数量仍为 1
-  - 当前玩家没有 active QuickShulker session
-- 当前 QuickShulker 菜单中仍不会再次发送新的 open 请求。
+  - 当前玩家如已有 active session，会按 same-host / different-host 规则决定拒绝还是安全切换
+- 当前 QuickShulker 菜单中，同一宿主不会再次发送新的 open 请求；不同宿主则允许继续发起切换。
 
 阶段 6B 的 `ender_chest` 最小闭环继续直接复用这条 6A.5 无界面手持右键边界，不额外复制独立入口。
 

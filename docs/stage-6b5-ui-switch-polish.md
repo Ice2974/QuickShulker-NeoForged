@@ -39,7 +39,7 @@
    - 当前 screen 已经不是旧的 source screen
    - 当前 screen 是 `AbstractContainerScreen`
    - 当前 menu 是 `ForgeQuickOpenMenu` / `NeoForgeQuickOpenMenu`
-4. 立刻调用 GLFW 恢复鼠标位置
+4. 只有当前 screen 的 `menu` 已确认是本模组 `ForgeQuickOpenMenu` / `NeoForgeQuickOpenMenu`，且 `quickOpenableTypeId()` 与请求类型一致时，才调用 GLFW 恢复鼠标位置
 5. 恢复成功后清空待恢复状态；如果数十 tick 内没有打开目标 QuickShulker 菜单，也自动过期清空
 
 这样可以保证：
@@ -61,7 +61,7 @@
 - `ForgeQuickShulkerClient.sendIntent(...)` 在真正发包前调用 `ForgeQuickOpenMouseRestore.capture(minecraft.screen)`
 - `capture(...)` 只接受当前为 `AbstractContainerScreen` 的情况
 - `onClientTick(...)` 在原有 held keybind 处理前，先执行 `ForgeQuickOpenMouseRestore.onClientTick()`
-- 当新 screen 已经切换为 `ForgeQuickOpenMenu` 时，通过 `GLFW.glfwSetCursorPos(...)` 恢复坐标
+- 当新 screen 对应的 `menu` 已经切换为目标 `ForgeQuickOpenMenu` 时，通过 `GLFW.glfwSetCursorPos(...)` 恢复坐标
 
 作用范围：
 
@@ -86,7 +86,7 @@
 
 - 发包前记录 source screen 与绝对鼠标坐标
 - 在 `ClientTickEvent.Post` 中检查待恢复状态
-- 仅当新 screen 已切换为 `NeoForgeQuickOpenMenu` 时恢复鼠标位置
+- 仅当新 screen 对应的 `menu` 已切换为目标 `NeoForgeQuickOpenMenu` 时恢复鼠标位置
 - 成功恢复或等待超时后清空状态
 
 这样做避免了依赖 NeoForge / Forge 不同的 screen init 事件差异，逻辑都收敛在客户端 tick 上，双平台行为更容易保持一致。
