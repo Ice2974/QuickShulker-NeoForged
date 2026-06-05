@@ -34,8 +34,13 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END
-            || !hasAnyEnabledQuickOpenable()
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+
+        ForgeQuickOpenMouseRestore.onClientTick();
+
+        if (!hasAnyEnabledQuickOpenable()
             || !ForgeQuickShulkerConfig.view().keybindInHand()) {
             return;
         }
@@ -98,6 +103,11 @@ public final class ForgeQuickShulkerClient {
         if (trySendHovered(player, event.getScreen(), QuickOpenTrigger.INVENTORY_RIGHT_CLICK)) {
             event.setCanceled(true);
         }
+    }
+
+    @SubscribeEvent
+    public static void onScreenInit(ScreenEvent.Init.Post event) {
+        ForgeQuickOpenMouseRestore.onScreenInit(event.getScreen());
     }
 
     @SubscribeEvent
@@ -180,6 +190,7 @@ public final class ForgeQuickShulkerClient {
     }
 
     private static void sendIntent(OpenHostItemIntent intent) {
+        ForgeQuickOpenMouseRestore.capture(Minecraft.getInstance().screen, intent.requestedTypeId());
         ForgeQuickShulkerNetwork.sendOpenHostItem(new ForgeOpenHostItemPacket(intent));
     }
 

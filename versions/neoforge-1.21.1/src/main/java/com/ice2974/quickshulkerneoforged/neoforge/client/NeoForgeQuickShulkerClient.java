@@ -38,6 +38,8 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        NeoForgeQuickOpenMouseRestore.onClientTick();
+
         if (!hasAnyEnabledQuickOpenable()
             || !NeoForgeQuickShulkerConfig.view().keybindInHand()) {
             return;
@@ -102,6 +104,11 @@ public final class NeoForgeQuickShulkerClient {
         if (trySendHovered(player, event.getScreen(), QuickOpenTrigger.INVENTORY_RIGHT_CLICK)) {
             event.setCanceled(true);
         }
+    }
+
+    @SubscribeEvent
+    public static void onScreenInit(ScreenEvent.Init.Post event) {
+        NeoForgeQuickOpenMouseRestore.onScreenInit(event.getScreen());
     }
 
     @SubscribeEvent
@@ -196,6 +203,7 @@ public final class NeoForgeQuickShulkerClient {
     }
 
     private static void sendIntent(OpenHostItemIntent intent) {
+        NeoForgeQuickOpenMouseRestore.capture(Minecraft.getInstance().screen, intent.requestedTypeId());
         NeoForgeQuickShulkerNetwork.sendOpenHostItem(new NeoForgeOpenHostItemPayload(intent));
     }
 
