@@ -1,30 +1,31 @@
 # QuickShulker NeoForged
+
 [中文](README.md) | **English**
 
-## Version Support
+QuickShulker NeoForged is an unofficial Forge / NeoForge port of `QuickShulker`, focused on bringing stable core quick-open behavior to modern Forge 1.20.1 and NeoForge 1.21.1 without drifting away from the original gameplay intent.
 
-| Game Version | Development Status | Last Supported Version |
+Version `0.1.0` focuses on stable core quick-open features. It does not claim to be a full port of every upstream extended interaction yet.
+
+## Supported Versions
+
+| Platform | Version | Status |
 | --- | --- | --- |
-| 1.20.1 | Maintained |   |
-| 1.21.1 | Maintained |   |
+| Forge | 1.20.1 | Maintained |
+| NeoForge | 1.21.1 | Maintained |
 
-## Download
+## License and Third-Party Sources
 
-- [GitHub](https://github.com/Ice2974/QuickShulker-NeoForged/releases)
+This project is an unofficial QuickShulker port.
 
-## License
+- new project-specific code is licensed under `PolyForm Noncommercial License 1.0.0`
+- [quickshulker](https://github.com/MoRanpcy/quickshulker) is used as a behavior, fix, and feature reference
+- [quickshulker-multi](https://github.com/EnderPhantomWing/quickshulker-multi) is used as a multi-version project structure reference
 
-New code, porting code, and project-specific modifications in this project are licensed under the PolyForm Noncommercial License 1.0.0. Commercial use is prohibited.
+See:
 
-This project is a Forge / NeoForge port of QuickShulker and may contain code or behavior referenced, adapted, or ported from third-party MIT-licensed projects. The original licenses continue to apply to their corresponding code, source material, and copyright notices, including but not limited to:
+- [LICENSE](LICENSE)
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 
-* [QuickShulker](https://github.com/kyrptonaught/quickshulker) : MIT, originally by kyrptonaught
-* [quickshulker](https://github.com/MoRanpcy/quickshulker) : MIT, used as a reference for modern behavior, bug fixes, and features
-* [quickshulker-multi](https://github.com/EnderPhantomWing/quickshulker-multi) : MIT, used as a reference for multi-version project structure
+Icon notice:
 
-Unless otherwise stated in a file or code section, upstream MIT-licensed code remains subject to its original MIT License, while new code and modifications made for this project are licensed under the PolyForm Noncommercial License 1.0.0.
-
-See also:
-
-* [LICENSE](LICENSE)
-* [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- the mod icon used by this project is derived from the original [QuickShulker](https://github.com/kyrptonaught/quickshulker) icon and is included here as upstream artwork attribution, not as a relicensing of the project root `LICENSE`

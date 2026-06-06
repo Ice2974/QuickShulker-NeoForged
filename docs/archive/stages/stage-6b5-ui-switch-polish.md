@@ -1,5 +1,8 @@
 # 阶段 6B.5：quick-open 容器切换 UI polish
 
+> 历史开发记录：本文档记录早期阶段实现过程，不再作为当前实现状态的唯一依据。当前状态请以源码、README 和 `docs/release-0.1.0.md` 为准。
+
+
 本阶段只处理两个体验问题：
 
 - QuickShulker 容器之间切换打开时，鼠标指针回到屏幕中心
@@ -157,7 +160,7 @@
 - `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/client/ForgeQuickShulkerClient.java`
 - `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/client/NeoForgeQuickOpenMouseRestore.java`
 - `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/client/NeoForgeQuickShulkerClient.java`
-- `docs/stage-6b5-ui-switch-polish.md`
+- `stage-6b5-ui-switch-polish.md`
 
 ## 待后续 polish 观察的 UI 细节
 

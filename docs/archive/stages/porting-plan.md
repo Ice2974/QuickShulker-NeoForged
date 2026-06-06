@@ -1,5 +1,8 @@
 # QuickShulker 移植计划（阶段 2）
 
+> 历史开发记录：本文档记录早期阶段实现过程，不再作为当前实现状态的唯一依据。当前状态请以源码、README 和 `docs/release-0.1.0.md` 为准。
+
+
 本文档基于以下参考源码目录的阅读结果整理：
 
 - `references/quickshulker-1.20`
@@ -679,7 +682,7 @@
 
 ## 9. 与当前仓库状态的一致性检查
 
-- 与 `docs/bootstrap-skeleton.md` 一致：
+- 与 `bootstrap-skeleton.md` 一致：
   当前仓库仍处于“仅有多模块骨架、尚未实现 gameplay features / menus / networking / configs / keybindings”的状态。
 - 与 `AGENTS.md` 一致：
   本文档将 `1.21.1` 作为现代行为基线，同时保留 Forge 1.20.1 的版本地基与回灌策略。

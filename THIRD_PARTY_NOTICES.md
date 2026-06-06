@@ -28,11 +28,13 @@ Commercial use of QuickShulker-NeoForged, including use in commercial modpacks, 
 
 QuickShulker-NeoForged is based on and/or derived from QuickShulker. Portions of the original project may have been referenced, adapted, modified, or ported for Forge and NeoForge compatibility.
 
+The mod icon bundled with QuickShulker-NeoForged is derived from the original QuickShulker project artwork and is retained here with upstream attribution. This notice applies to the icon asset in addition to any referenced code.
+
 Original MIT-licensed code remains subject to the original MIT License. The original copyright and license notices must be preserved in copies or substantial portions of the original software.
 
-### MoRanpcy/quickshulker
+### quickshulker
 
-* Project: **MoRanpcy/quickshulker**
+* Project: **quickshulker**
 * Author: **MoRanpcy**
 * Source: https://github.com/MoRanpcy/quickshulker
 * License: **MIT License**

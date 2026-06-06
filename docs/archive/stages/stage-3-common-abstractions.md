@@ -1,5 +1,8 @@
 # 阶段 3：common 层基础抽象设计
 
+> 历史开发记录：本文档记录早期阶段实现过程，不再作为当前实现状态的唯一依据。当前状态请以源码、README 和 `docs/release-0.1.0.md` 为准。
+
+
 本文档记录阶段 3 在 `common` 模块新增的平台无关模型、接口与安全语义。本文档只描述抽象，不代表 Forge 1.20.1 或 NeoForge 1.21.1 已经接入真实菜单、按键、网络包或容器保存链路。
 
 ## 1. 本阶段新增的 common 抽象
@@ -35,7 +38,7 @@
 说明：
 
 - `bundle` 仅在 `QuickOpenableCategory` 中预留扩展空间，没有作为当前阶段必须实现或默认注册的能力
-- 这样可以满足 `docs/porting-plan.md` 中“quickBundle / Bundle 独立菜单待人工确认”的范围要求
+- 这样可以满足 `porting-plan.md` 中“quickBundle / Bundle 独立菜单待人工确认”的范围要求
 
 对应阶段 2 需求：
 
@@ -147,7 +150,7 @@
 作用：
 
 - 把配置语义从平台配置系统中抽离
-- 默认值优先对齐 `docs/porting-plan.md` 中的 1.21.1 行为基线
+- 默认值优先对齐 `porting-plan.md` 中的 1.21.1 行为基线
 
 当前已覆盖的配置语义：
 
