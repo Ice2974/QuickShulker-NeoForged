@@ -18,6 +18,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
@@ -32,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.List;
 
 @EventBusSubscriber(modid = QuickShulkerConstants.MOD_ID, value = Dist.CLIENT)
 public final class NeoForgeQuickShulkerClient {
@@ -216,6 +218,52 @@ public final class NeoForgeQuickShulkerClient {
     public static void schedulePendingInventoryReopenAndProcess(ReopenPlayerInventoryIntent intent) {
         ReopenPlayerInventoryQueue.schedule(intent);
         processPendingInventoryReopen();
+    }
+
+    public static void applyEnderChestFullSync(String sessionId, List<ItemStack> stacks) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Player player = minecraft.player;
+        if (player == null) {
+            LOGGER.debug("Ignored ender chest full sync because local player is unavailable: sessionId={}", sessionId);
+            return;
+        }
+
+        Container enderChest = player.getEnderChestInventory();
+        int containerSize = enderChest.getContainerSize();
+        for (int slotIndex = 0; slotIndex < containerSize; slotIndex++) {
+            ItemStack syncedStack = slotIndex < stacks.size() ? stacks.get(slotIndex) : ItemStack.EMPTY;
+            enderChest.setItem(slotIndex, syncedStack.copy());
+        }
+        enderChest.setChanged();
+        LOGGER.debug("Applied ender chest full sync: sessionId={}, slotCount={}", sessionId, stacks.size());
+    }
+
+    public static void applyEnderChestSlotSync(String sessionId, int slotIndex, ItemStack stack) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Player player = minecraft.player;
+        if (player == null) {
+            LOGGER.debug(
+                "Ignored ender chest slot sync because local player is unavailable: sessionId={}, slotIndex={}",
+                sessionId,
+                slotIndex
+            );
+            return;
+        }
+
+        Container enderChest = player.getEnderChestInventory();
+        if (slotIndex < 0 || slotIndex >= enderChest.getContainerSize()) {
+            LOGGER.debug(
+                "Ignored ender chest slot sync with invalid slot index: sessionId={}, slotIndex={}, containerSize={}",
+                sessionId,
+                slotIndex,
+                enderChest.getContainerSize()
+            );
+            return;
+        }
+
+        enderChest.setItem(slotIndex, stack.copy());
+        enderChest.setChanged();
+        LOGGER.debug("Applied ender chest slot sync: sessionId={}, slotIndex={}", sessionId, slotIndex);
     }
 
     private static boolean shouldBlockOffhandSwap(Screen screen, Minecraft minecraft, int keyCode, int scanCode) {

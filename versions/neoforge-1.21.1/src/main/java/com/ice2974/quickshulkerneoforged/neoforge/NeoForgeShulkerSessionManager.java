@@ -243,7 +243,8 @@ public final class NeoForgeShulkerSessionManager {
                     inventory,
                     serverPlayer.getEnderChestInventory(),
                     this,
-                    hostItemReference.slotRef()
+                    hostItemReference.slotRef(),
+                    openSession.sessionId()
                 );
                 holder[0] = menu;
                 return menu;
@@ -254,6 +255,7 @@ public final class NeoForgeShulkerSessionManager {
         if (holder[0] == null) {
             return null;
         }
+        holder[0].sendInitialSync(player);
         return ActiveSession.forTransient(openSession, hostItemReference, holder[0], CloseReason.PLAYER_CLOSED);
     }
 
