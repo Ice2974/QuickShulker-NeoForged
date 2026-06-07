@@ -1,6 +1,6 @@
 # 阶段 6C：functional menus quick-open
 
-> 历史开发记录：本文档记录早期阶段实现过程，不再作为当前实现状态的唯一依据。当前状态请以源码、README 和 `docs/release-0.1.0.md` 为准。
+> 历史开发记录：本文档记录早期阶段实现过程，不再作为当前实现状态的唯一依据。当前状态请以源码、README 和 `docs/releases/release-0.1.0.md` 为准。
 
 
 本阶段在已完成的 `shulker_box`、`ender_chest`、四个输入入口、宿主锁定、active session 防重入和 quick-open 切换基础上，补齐三类“不把内容写回宿主物品”的功能菜单 quick-open：
