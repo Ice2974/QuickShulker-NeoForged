@@ -1,9 +1,9 @@
 package com.ice2974.quickshulkerneoforged.neoforge.network;
 
 import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
-import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryQueue;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickOpenHandler;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeServices;
+import com.ice2974.quickshulkerneoforged.neoforge.client.NeoForgeQuickShulkerClient;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -27,7 +27,7 @@ public final class NeoForgeQuickShulkerNetwork {
         event.registrar(PROTOCOL_VERSION).playToClient(
             NeoForgeReopenPlayerInventoryPayload.TYPE,
             NeoForgeReopenPlayerInventoryPayload.STREAM_CODEC,
-            (payload, context) -> ReopenPlayerInventoryQueue.schedule(payload.intent())
+            (payload, context) -> NeoForgeQuickShulkerClient.schedulePendingInventoryReopenAndProcess(payload.intent())
         );
     }
 

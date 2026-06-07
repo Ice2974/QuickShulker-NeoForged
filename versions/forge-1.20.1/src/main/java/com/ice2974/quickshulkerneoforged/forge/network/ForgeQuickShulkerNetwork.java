@@ -3,8 +3,8 @@ package com.ice2974.quickshulkerneoforged.forge.network;
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.forge.ForgeQuickOpenHandler;
 import com.ice2974.quickshulkerneoforged.forge.ForgeShulkerSessionManager;
+import com.ice2974.quickshulkerneoforged.forge.client.ForgeQuickShulkerClient;
 import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
-import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryQueue;
 import java.util.function.Supplier;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -64,7 +64,7 @@ public final class ForgeQuickShulkerNetwork {
         ForgeReopenPlayerInventoryPacket packet,
         Supplier<NetworkEvent.Context> contextSupplier
     ) {
-        ReopenPlayerInventoryQueue.schedule(packet.intent());
+        ForgeQuickShulkerClient.schedulePendingInventoryReopenAndProcess(packet.intent());
         contextSupplier.get().setPacketHandled(true);
     }
 }

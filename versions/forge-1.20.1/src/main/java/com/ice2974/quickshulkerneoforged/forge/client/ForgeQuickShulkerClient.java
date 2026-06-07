@@ -2,6 +2,7 @@ package com.ice2974.quickshulkerneoforged.forge.client;
 
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.OpenHostItemIntent;
+import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
 import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryQueue;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
@@ -201,6 +202,11 @@ public final class ForgeQuickShulkerClient {
     private static void sendIntent(OpenHostItemIntent intent) {
         ForgeQuickOpenMouseRestore.capture(Minecraft.getInstance().screen, intent.requestedTypeId());
         ForgeQuickShulkerNetwork.sendOpenHostItem(new ForgeOpenHostItemPacket(intent));
+    }
+
+    public static void schedulePendingInventoryReopenAndProcess(ReopenPlayerInventoryIntent intent) {
+        ReopenPlayerInventoryQueue.schedule(intent);
+        processPendingInventoryReopen();
     }
 
     private static boolean shouldBlockOffhandSwap(Screen screen, Minecraft minecraft, int keyCode, int scanCode) {
