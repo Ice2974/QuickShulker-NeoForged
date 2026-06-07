@@ -12,6 +12,10 @@ public final class NeoForgeQuickShulkerConfig {
     private static final ModConfigSpec.BooleanValue KEYBIND_IN_INVENTORY;
     private static final ModConfigSpec.BooleanValue RIGHT_CLICK_IN_INVENTORY;
     private static final ModConfigSpec.BooleanValue RIGHT_CLICK_CLOSE;
+    private static final ModConfigSpec.BooleanValue SUPPORTS_BUNDLING_INSERT;
+    private static final ModConfigSpec.BooleanValue SUPPORTS_BUNDLING_PICKUP;
+    private static final ModConfigSpec.BooleanValue SUPPORTS_BUNDLING_TRANSFER;
+    private static final ModConfigSpec.BooleanValue SUPPORTS_BUNDLING_EXTRACT;
     private static final ModConfigSpec.BooleanValue SUPPORTS_MOUSE_DRAGGED;
     private static final ModConfigSpec.BooleanValue QUICK_SHULKER_BOX;
     private static final ModConfigSpec.BooleanValue QUICK_CRAFTING_TABLE;
@@ -41,8 +45,20 @@ public final class NeoForgeQuickShulkerConfig {
         builder.pop();
 
         builder.push("interaction");
+        SUPPORTS_BUNDLING_INSERT = builder
+            .comment("Reserved for a future shulker interaction where right clicking a shulker box with an item inserts it.")
+            .define("supportsBundlingInsert", DEFAULTS.supportsBundlingInsert());
+        SUPPORTS_BUNDLING_PICKUP = builder
+            .comment("Reserved for a future shulker interaction where right clicking an item with a shulker box inserts the item into the shulker box.")
+            .define("supportsBundlingPickup", DEFAULTS.supportsBundlingPickup());
+        SUPPORTS_BUNDLING_TRANSFER = builder
+            .comment("Reserved for a future shulker interaction where right clicking a shulker box with another shulker box transfers items.")
+            .define("supportsBundlingTransfer", DEFAULTS.supportsBundlingTransfer());
+        SUPPORTS_BUNDLING_EXTRACT = builder
+            .comment("Reserved for a future shulker interaction where right clicking an empty slot with a shulker box extracts an item.")
+            .define("supportsBundlingExtract", DEFAULTS.supportsBundlingExtract());
         SUPPORTS_MOUSE_DRAGGED = builder
-            .comment("Reserved for future dragged mouse interactions.")
+            .comment("Reserved for a future shulker interaction where right clicking and dragging with a shulker box performs bulk interactions.")
             .define("supportsMouseDragged", DEFAULTS.supportsMouseDragged());
         builder.pop();
 
@@ -112,22 +128,22 @@ public final class NeoForgeQuickShulkerConfig {
 
         @Override
         public boolean supportsBundlingInsert() {
-            return DEFAULTS.supportsBundlingInsert();
+            return SUPPORTS_BUNDLING_INSERT.get();
         }
 
         @Override
         public boolean supportsBundlingPickup() {
-            return DEFAULTS.supportsBundlingPickup();
+            return SUPPORTS_BUNDLING_PICKUP.get();
         }
 
         @Override
         public boolean supportsBundlingTransfer() {
-            return DEFAULTS.supportsBundlingTransfer();
+            return SUPPORTS_BUNDLING_TRANSFER.get();
         }
 
         @Override
         public boolean supportsBundlingExtract() {
-            return DEFAULTS.supportsBundlingExtract();
+            return SUPPORTS_BUNDLING_EXTRACT.get();
         }
 
         @Override
