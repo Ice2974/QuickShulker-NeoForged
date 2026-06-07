@@ -11,7 +11,6 @@ public final class ForgeQuickShulkerConfig {
     private static final ForgeConfigSpec.BooleanValue KEYBIND_IN_HAND;
     private static final ForgeConfigSpec.BooleanValue KEYBIND_IN_INVENTORY;
     private static final ForgeConfigSpec.BooleanValue RIGHT_CLICK_IN_INVENTORY;
-    private static final ForgeConfigSpec.BooleanValue RIGHT_CLICK_CLOSE;
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_BUNDLING_INSERT;
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_BUNDLING_PICKUP;
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_BUNDLING_TRANSFER;
@@ -39,9 +38,6 @@ public final class ForgeQuickShulkerConfig {
         RIGHT_CLICK_IN_INVENTORY = builder
             .comment("Allow right click to open a supported item from a hovered player inventory slot.")
             .define("rightClickInInventory", DEFAULTS.rightClickInInventory());
-        RIGHT_CLICK_CLOSE = builder
-            .comment("Reserved for future right-click-close behavior.")
-            .define("rightClickClose", DEFAULTS.rightClickClose());
         builder.pop();
 
         builder.push("interaction");
@@ -119,11 +115,6 @@ public final class ForgeQuickShulkerConfig {
         @Override
         public boolean rightClickInInventory() {
             return RIGHT_CLICK_IN_INVENTORY.get();
-        }
-
-        @Override
-        public boolean rightClickClose() {
-            return RIGHT_CLICK_CLOSE.get();
         }
 
         @Override

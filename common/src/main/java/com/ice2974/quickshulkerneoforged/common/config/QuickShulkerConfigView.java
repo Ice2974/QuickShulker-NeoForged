@@ -17,8 +17,6 @@ public interface QuickShulkerConfigView {
 
     boolean rightClickInInventory();
 
-    boolean rightClickClose();
-
     boolean supportsBundlingInsert();
 
     boolean supportsBundlingPickup();
