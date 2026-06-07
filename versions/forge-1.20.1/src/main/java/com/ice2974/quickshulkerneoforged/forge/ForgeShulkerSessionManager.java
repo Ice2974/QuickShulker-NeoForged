@@ -8,6 +8,7 @@ import com.ice2974.quickshulkerneoforged.common.open.HostItemReference;
 import com.ice2974.quickshulkerneoforged.common.open.HostValidationMode;
 import com.ice2974.quickshulkerneoforged.common.open.HostValidationResult;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenMenuKind;
+import com.ice2974.quickshulkerneoforged.common.open.QuickOpenRequest;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenableType;
 import com.ice2974.quickshulkerneoforged.common.session.CloseReason;
@@ -320,11 +321,10 @@ public final class ForgeShulkerSessionManager {
         QuickOpenableType type = ForgeQuickOpenRegistry.registry()
             .findType(hostItemReference.quickOpenableTypeId())
             .orElse(BuiltinQuickOpenables.SHULKER_BOX);
-        boolean reopenPlayerInventoryAfterClose = ForgeQuickOpenHandler
-            .createRequest(type, hostItemReference.slotRef(), trigger)
-            .shouldReturnToPlayerInventory();
+        QuickOpenRequest request = ForgeQuickOpenHandler.createRequest(type, hostItemReference.slotRef(), trigger);
+        boolean reopenPlayerInventoryAfterClose = request.shouldReturnToPlayerInventory();
         return OpenSession.create(
-            ForgeQuickOpenHandler.createRequest(type, hostItemReference.slotRef(), trigger),
+            request,
             hostItemReference,
             new MenuOpenIntent(
                 "pending",
