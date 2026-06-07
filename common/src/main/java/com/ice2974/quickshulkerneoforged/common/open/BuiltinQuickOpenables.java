@@ -22,7 +22,7 @@ public final class BuiltinQuickOpenables {
         true,
         true,
         true,
-        false
+        true
     );
 
     public static final QuickOpenableType CRAFTING_TABLE = new QuickOpenableType(
