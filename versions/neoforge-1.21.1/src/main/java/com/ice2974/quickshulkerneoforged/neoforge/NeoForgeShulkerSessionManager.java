@@ -1,5 +1,6 @@
 package com.ice2974.quickshulkerneoforged.neoforge;
 
+import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
 import com.ice2974.quickshulkerneoforged.common.open.DefaultHostItemValidator;
 import com.ice2974.quickshulkerneoforged.common.open.BuiltinQuickOpenables;
 import com.ice2974.quickshulkerneoforged.common.open.HostIdentity;
@@ -14,6 +15,7 @@ import com.ice2974.quickshulkerneoforged.common.session.MenuOpenIntent;
 import com.ice2974.quickshulkerneoforged.common.session.OpenSession;
 import com.ice2974.quickshulkerneoforged.common.session.OpenSessionSafetyPolicy;
 import com.ice2974.quickshulkerneoforged.common.session.SaveDisposition;
+import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeQuickShulkerNetwork;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -150,6 +152,13 @@ public final class NeoForgeShulkerSessionManager {
             wroteContents,
             evaluatedSession.state()
         );
+
+        if (shouldSendReopenPlayerInventory(player, session, validation, source)) {
+            NeoForgeQuickShulkerNetwork.sendReopenPlayerInventory(
+                player,
+                new ReopenPlayerInventoryIntent(session.openSession().sessionId())
+            );
+        }
     }
 
     public void finishSessionOnDisconnect(ServerPlayer player) {
@@ -309,8 +318,14 @@ public final class NeoForgeShulkerSessionManager {
         QuickOpenTrigger trigger,
         QuickOpenMenuKind menuKind
     ) {
+        QuickOpenableType type = NeoForgeQuickOpenRegistry.registry()
+            .findType(hostItemReference.quickOpenableTypeId())
+            .orElse(BuiltinQuickOpenables.SHULKER_BOX);
+        boolean reopenPlayerInventoryAfterClose = NeoForgeQuickOpenHandler
+            .createRequest(type, hostItemReference.slotRef(), trigger)
+            .shouldReturnToPlayerInventory();
         return OpenSession.create(
-            NeoForgeQuickOpenHandler.createRequest(hostItemReference.quickOpenableTypeId(), hostItemReference.slotRef(), trigger),
+            NeoForgeQuickOpenHandler.createRequest(type, hostItemReference.slotRef(), trigger),
             hostItemReference,
             new MenuOpenIntent(
                 "pending",
@@ -318,10 +333,26 @@ public final class NeoForgeShulkerSessionManager {
                 menuKind,
                 hostItemReference,
                 true,
-                false
+                reopenPlayerInventoryAfterClose
             ),
             OpenSessionSafetyPolicy.strict()
         );
+    }
+
+    private static boolean shouldSendReopenPlayerInventory(
+        ServerPlayer player,
+        ActiveSession session,
+        HostValidationResult validation,
+        String source
+    ) {
+        if (player.connection == null || !"menu_removed".equals(source) || session.closeReason() != CloseReason.PLAYER_CLOSED) {
+            return false;
+        }
+        if (!validation.valid()) {
+            return false;
+        }
+        return session.openSession().request().shouldReturnToPlayerInventory()
+            || session.openSession().menuIntent().reopenPlayerInventoryAfterClose();
     }
 
     private record ActiveSession(

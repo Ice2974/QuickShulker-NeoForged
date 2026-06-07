@@ -2,6 +2,7 @@ package com.ice2974.quickshulkerneoforged.neoforge.client;
 
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.OpenHostItemIntent;
+import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryQueue;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
@@ -15,6 +16,7 @@ import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeQuickShulkerNe
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
@@ -40,6 +42,7 @@ public final class NeoForgeQuickShulkerClient {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         NeoForgeQuickOpenMouseRestore.onClientTick();
+        processPendingInventoryReopen();
 
         if (!hasAnyEnabledQuickOpenable()
             || !NeoForgeQuickShulkerConfig.view().keybindInHand()) {
@@ -242,5 +245,32 @@ public final class NeoForgeQuickShulkerClient {
             || NeoForgeQuickShulkerConfig.view().quickStonecutter()
             || NeoForgeQuickShulkerConfig.view().quickEnderChest()
             || NeoForgeQuickShulkerConfig.view().quickAnvil();
+    }
+
+    private static void processPendingInventoryReopen() {
+        ReopenPlayerInventoryQueue.PendingReopen pendingReopen = ReopenPlayerInventoryQueue.pending();
+        if (pendingReopen == null) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        if (pendingReopen.isExpired(System.nanoTime())) {
+            LOGGER.debug("Dropped pending inventory reopen after timeout: sessionId={}", pendingReopen.sessionId());
+            ReopenPlayerInventoryQueue.clear();
+            return;
+        }
+        if (minecraft.player == null) {
+            return;
+        }
+        if (minecraft.screen instanceof InventoryScreen) {
+            ReopenPlayerInventoryQueue.clear();
+            return;
+        }
+        if (minecraft.screen != null) {
+            return;
+        }
+
+        minecraft.setScreen(new InventoryScreen(minecraft.player));
+        ReopenPlayerInventoryQueue.clear();
     }
 }

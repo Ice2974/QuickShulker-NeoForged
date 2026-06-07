@@ -3,12 +3,15 @@ package com.ice2974.quickshulkerneoforged.forge.network;
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.forge.ForgeQuickOpenHandler;
 import com.ice2974.quickshulkerneoforged.forge.ForgeShulkerSessionManager;
+import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
+import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryQueue;
 import java.util.function.Supplier;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class ForgeQuickShulkerNetwork {
@@ -29,6 +32,11 @@ public final class ForgeQuickShulkerNetwork {
             .decoder(ForgeOpenHostItemPacket::decode)
             .consumerMainThread((packet, contextSupplier) -> handleOpenHostItem(packet, contextSupplier, sessionManager))
             .add();
+        CHANNEL.messageBuilder(ForgeReopenPlayerInventoryPacket.class, 1, NetworkDirection.PLAY_TO_CLIENT)
+            .encoder(ForgeReopenPlayerInventoryPacket::encode)
+            .decoder(ForgeReopenPlayerInventoryPacket::decode)
+            .consumerMainThread(ForgeQuickShulkerNetwork::handleReopenPlayerInventory)
+            .add();
     }
 
     private static void handleOpenHostItem(
@@ -46,5 +54,17 @@ public final class ForgeQuickShulkerNetwork {
 
     public static void sendOpenHostItem(ForgeOpenHostItemPacket packet) {
         CHANNEL.sendToServer(packet);
+    }
+
+    public static void sendReopenPlayerInventory(ServerPlayer player, ReopenPlayerInventoryIntent intent) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ForgeReopenPlayerInventoryPacket(intent));
+    }
+
+    private static void handleReopenPlayerInventory(
+        ForgeReopenPlayerInventoryPacket packet,
+        Supplier<NetworkEvent.Context> contextSupplier
+    ) {
+        ReopenPlayerInventoryQueue.schedule(packet.intent());
+        contextSupplier.get().setPacketHandled(true);
     }
 }

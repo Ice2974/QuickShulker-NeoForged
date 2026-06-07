@@ -2,6 +2,7 @@ package com.ice2974.quickshulkerneoforged.forge.client;
 
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.OpenHostItemIntent;
+import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryQueue;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
@@ -14,6 +15,7 @@ import com.ice2974.quickshulkerneoforged.forge.network.ForgeOpenHostItemPacket;
 import com.ice2974.quickshulkerneoforged.forge.network.ForgeQuickShulkerNetwork;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -25,11 +27,15 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
 @Mod.EventBusSubscriber(modid = QuickShulkerConstants.MOD_ID, value = Dist.CLIENT)
 public final class ForgeQuickShulkerClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ForgeQuickShulkerClient.class);
+
     private ForgeQuickShulkerClient() {
     }
 
@@ -40,6 +46,7 @@ public final class ForgeQuickShulkerClient {
         }
 
         ForgeQuickOpenMouseRestore.onClientTick();
+        processPendingInventoryReopen();
 
         if (!hasAnyEnabledQuickOpenable()
             || !ForgeQuickShulkerConfig.view().keybindInHand()) {
@@ -229,5 +236,32 @@ public final class ForgeQuickShulkerClient {
             || ForgeQuickShulkerConfig.view().quickStonecutter()
             || ForgeQuickShulkerConfig.view().quickEnderChest()
             || ForgeQuickShulkerConfig.view().quickAnvil();
+    }
+
+    private static void processPendingInventoryReopen() {
+        ReopenPlayerInventoryQueue.PendingReopen pendingReopen = ReopenPlayerInventoryQueue.pending();
+        if (pendingReopen == null) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        if (pendingReopen.isExpired(System.nanoTime())) {
+            LOGGER.debug("Dropped pending inventory reopen after timeout: sessionId={}", pendingReopen.sessionId());
+            ReopenPlayerInventoryQueue.clear();
+            return;
+        }
+        if (minecraft.player == null) {
+            return;
+        }
+        if (minecraft.screen instanceof InventoryScreen) {
+            ReopenPlayerInventoryQueue.clear();
+            return;
+        }
+        if (minecraft.screen != null) {
+            return;
+        }
+
+        minecraft.setScreen(new InventoryScreen(minecraft.player));
+        ReopenPlayerInventoryQueue.clear();
     }
 }

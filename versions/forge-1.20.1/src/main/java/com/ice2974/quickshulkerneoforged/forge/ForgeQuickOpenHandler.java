@@ -5,6 +5,7 @@ import com.ice2974.quickshulkerneoforged.common.open.BuiltinQuickOpenables;
 import com.ice2974.quickshulkerneoforged.common.open.HostItemReference;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenRequest;
+import com.ice2974.quickshulkerneoforged.common.open.QuickOpenReturnToInventoryPolicy;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenableType;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,13 +15,13 @@ public final class ForgeQuickOpenHandler {
     private ForgeQuickOpenHandler() {
     }
 
-    public static QuickOpenRequest createRequest(String requestedTypeId, HostSlotRef hostSlot, QuickOpenTrigger trigger) {
+    public static QuickOpenRequest createRequest(QuickOpenableType type, HostSlotRef hostSlot, QuickOpenTrigger trigger) {
         return new QuickOpenRequest(
-            requestedTypeId,
+            type.id(),
             hostSlot,
             trigger,
             true,
-            false
+            QuickOpenReturnToInventoryPolicy.shouldReturnToPlayerInventory(type, trigger)
         );
     }
 
