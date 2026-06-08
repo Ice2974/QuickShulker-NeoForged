@@ -233,7 +233,7 @@ public final class ForgeQuickShulkerClient {
         }
 
         Slot hoveredSlot = containerScreen.getSlotUnderMouse();
-        if (hoveredSlot == null || !hoveredSlot.hasItem()) {
+        if (hoveredSlot == null) {
             return false;
         }
 
@@ -248,11 +248,18 @@ public final class ForgeQuickShulkerClient {
 
         ItemStack carried = containerScreen.getMenu().getCarried();
         ItemStack hoveredStack = hoveredSlot.getItem();
+        if (ForgeQuickShulkerConfig.view().supportsBundlingExtract()
+            && hoveredStack.isEmpty()
+            && isSingleShulkerBox(carried)) {
+            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.EXTRACT, hostSlot.get()));
+            return true;
+        }
+
         if (ForgeQuickShulkerConfig.view().supportsBundlingInsert()
             && !carried.isEmpty()
             && !isShulkerBox(carried)
             && isSingleShulkerBox(hoveredStack)) {
-            sendBundlingIntent(new ShulkerBundlingIntent(ShulkerBundlingAction.INSERT, hostSlot.get()));
+            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.INSERT, hostSlot.get()));
             return true;
         }
 
@@ -261,17 +268,27 @@ public final class ForgeQuickShulkerClient {
             && !hoveredStack.isEmpty()
             && !isShulkerBox(hoveredStack)
             && hoveredStack.getItem().canFitInsideContainerItems()) {
-            sendBundlingIntent(new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, hostSlot.get()));
+            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, hostSlot.get()));
             return true;
         }
 
         return false;
     }
 
-    private static void sendBundlingIntent(ShulkerBundlingIntent intent) {
-        ItemStack carried = Minecraft.getInstance().player == null
-            ? ItemStack.EMPTY
-            : Minecraft.getInstance().player.containerMenu.getCarried().copy();
+    private static void sendBundlingIntent(AbstractContainerScreen<?> containerScreen, ShulkerBundlingIntent intent) {
+        Player player = Minecraft.getInstance().player;
+        ItemStack carried = containerScreen.getMenu().getCarried().copy();
+        if (player != null && player.getAbilities().instabuild && LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                "Sending Forge creative bundling intent: action={}, hostSlot={}, screenMenuClass={}, screenCarried={}, playerContainerMenuClass={}, playerContainerCarried={}",
+                intent.action(),
+                intent.hostSlot(),
+                containerScreen.getMenu().getClass().getName(),
+                describeStack(carried),
+                player.containerMenu.getClass().getName(),
+                describeStack(player.containerMenu.getCarried())
+            );
+        }
         ForgeQuickShulkerNetwork.sendShulkerBundling(new ForgeShulkerBundlingPacket(intent, carried));
     }
 
@@ -362,5 +379,12 @@ public final class ForgeQuickShulkerClient {
 
     private static boolean isShulkerBox(ItemStack stack) {
         return !stack.isEmpty() && Block.byItem(stack.getItem()) instanceof ShulkerBoxBlock;
+    }
+
+    private static String describeStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return "<empty>";
+        }
+        return ForgeItemSnapshots.snapshot(stack).itemKey() + " x" + stack.getCount();
     }
 }

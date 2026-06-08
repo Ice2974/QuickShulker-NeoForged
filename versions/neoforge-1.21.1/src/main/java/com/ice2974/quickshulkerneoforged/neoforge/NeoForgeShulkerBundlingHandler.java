@@ -25,6 +25,7 @@ public final class NeoForgeShulkerBundlingHandler {
         switch (intent.action()) {
             case INSERT -> handleInsert(player, intent, cursorStack);
             case PICKUP_INSERT -> handlePickupInsert(player, intent, cursorStack);
+            case EXTRACT -> handleExtract(player, intent, cursorStack);
         }
     }
 
@@ -37,6 +38,7 @@ public final class NeoForgeShulkerBundlingHandler {
         }
 
         ItemStack carried = resolvedCarried(player, cursorStack);
+        logCreativeResolvedCarried(player, intent, cursorStack, carried, "insert");
         if (carried.isEmpty() || isShulkerBox(carried)) {
             LOGGER.debug("Rejected NeoForge creative/player bundling insert due to invalid carried stack: creative={}, empty={}, shulker={}",
                 player.getAbilities().instabuild, carried.isEmpty(), isShulkerBox(carried));
@@ -52,7 +54,9 @@ public final class NeoForgeShulkerBundlingHandler {
 
         NeoForgeHostSlotResolver.set(player, intent.hostSlot(), result.updatedContainerStack().orElseThrow().copy());
         player.containerMenu.setCarried(result.updatedInputStack().orElseThrow().copy());
+        logCreativeSetCarried(player, intent, "insert");
         syncPlayerInventory(player);
+        clearCreativeServerCarriedAfterSync(player, intent, "insert");
     }
 
     private static void handlePickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
@@ -64,6 +68,7 @@ public final class NeoForgeShulkerBundlingHandler {
         }
 
         ItemStack carried = resolvedCarried(player, cursorStack);
+        logCreativeResolvedCarried(player, intent, cursorStack, carried, "pickup_insert");
         if (!isSingleShulkerBox(carried)) {
             LOGGER.debug("Rejected NeoForge pickup insert due to non-single-shulker carried stack: creative={}, count={}, empty={}",
                 player.getAbilities().instabuild, carried.getCount(), carried.isEmpty());
@@ -82,16 +87,64 @@ public final class NeoForgeShulkerBundlingHandler {
         }
 
         player.containerMenu.setCarried(result.updatedContainerStack().orElseThrow().copy());
+        logCreativeSetCarried(player, intent, "pickup_insert");
         NeoForgeHostSlotResolver.set(player, intent.hostSlot(), result.updatedInputStack().orElseThrow().copy());
         syncPlayerInventory(player);
+        clearCreativeServerCarriedAfterSync(player, intent, "pickup_insert");
+    }
+
+    private static void handleExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
+            return;
+        }
+        if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
+        if (!NeoForgeHostSlotResolver.isPlayerInventorySlotRef(intent.hostSlot())) {
+            LOGGER.debug("Rejected NeoForge extract due to invalid host slot ref: {}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack targetStack = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot());
+        if (!targetStack.isEmpty()) {
+            LOGGER.debug("Rejected NeoForge extract because target slot was not empty: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack carried = resolvedCarried(player, cursorStack);
+        logCreativeResolvedCarried(player, intent, cursorStack, carried, "extract");
+        if (!isSingleShulkerBox(carried)) {
+            LOGGER.debug("Rejected NeoForge extract due to non-single-shulker carried stack: creative={}, count={}, empty={}",
+                player.getAbilities().instabuild, carried.getCount(), carried.isEmpty());
+            return;
+        }
+
+        ShulkerBundlingResult<ItemStack, ItemStack> result = HELPER.extractFirstStack(carried);
+        if (!result.changed() || result.updatedContainerStack().isEmpty() || result.extractedStack().isEmpty()) {
+            LOGGER.debug("Rejected NeoForge extract after helper validation: failure={}, detail={}", result.failure(), result.detail());
+            return;
+        }
+
+        if (!NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()).isEmpty()) {
+            LOGGER.debug("Rejected NeoForge extract because target slot changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        player.containerMenu.setCarried(result.updatedContainerStack().orElseThrow().copy());
+        logCreativeSetCarried(player, intent, "extract");
+        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), result.extractedStack().orElseThrow().copy());
+        syncPlayerInventory(player);
+        clearCreativeServerCarriedAfterSync(player, intent, "extract");
     }
 
     private static void syncPlayerInventory(ServerPlayer player) {
         player.getInventory().setChanged();
         player.containerMenu.broadcastChanges();
         if (player.getAbilities().instabuild) {
+            // Creative bundling mutates the currently open menu's carried stack. Re-sending the
+            // separate inventoryMenu state here can reintroduce the pre-mutation shulker copy
+            // when the creative screen closes.
             player.containerMenu.broadcastFullState();
-            player.inventoryMenu.sendAllDataToRemote();
         }
     }
 
@@ -113,5 +166,62 @@ public final class NeoForgeShulkerBundlingHandler {
     private static boolean isCurrentQuickOpenHost(ServerPlayer player, ShulkerBundlingIntent intent) {
         return player.containerMenu instanceof NeoForgeQuickOpenMenu quickOpenMenu
             && HostIdentity.sameSlot(quickOpenMenu.hostSlotRef(), intent.hostSlot());
+    }
+
+    private static void logCreativeResolvedCarried(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        ItemStack resolvedCarried,
+        String phase
+    ) {
+        if (!player.getAbilities().instabuild || !LOGGER.isDebugEnabled()) {
+            return;
+        }
+        LOGGER.debug(
+            "NeoForge creative bundling {} before apply: action={}, hostSlot={}, payloadCursor={}, resolvedCarried={}, menuCarried={}",
+            phase,
+            intent.action(),
+            intent.hostSlot(),
+            describeStack(cursorStack),
+            describeStack(resolvedCarried),
+            describeStack(player.containerMenu.getCarried())
+        );
+    }
+
+    private static void logCreativeSetCarried(ServerPlayer player, ShulkerBundlingIntent intent, String phase) {
+        if (!player.getAbilities().instabuild || !LOGGER.isDebugEnabled()) {
+            return;
+        }
+        LOGGER.debug(
+            "NeoForge creative bundling {} after setCarried: action={}, hostSlot={}, menuCarried={}",
+            phase,
+            intent.action(),
+            intent.hostSlot(),
+            describeStack(player.containerMenu.getCarried())
+        );
+    }
+
+    private static void clearCreativeServerCarriedAfterSync(ServerPlayer player, ShulkerBundlingIntent intent, String phase) {
+        if (!player.getAbilities().instabuild) {
+            return;
+        }
+        player.containerMenu.setCarried(ItemStack.EMPTY);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                "NeoForge creative bundling {} cleared server carried after sync: action={}, hostSlot={}, menuCarried={}",
+                phase,
+                intent.action(),
+                intent.hostSlot(),
+                describeStack(player.containerMenu.getCarried())
+            );
+        }
+    }
+
+    private static String describeStack(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return "<empty>";
+        }
+        return stack.getItem().toString() + " x" + stack.getCount();
     }
 }

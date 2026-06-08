@@ -66,6 +66,15 @@ public final class NeoForgeHostSlotResolver {
         }
     }
 
+    public static boolean isPlayerInventorySlotRef(HostSlotRef slotRef) {
+        return switch (slotRef.scope()) {
+            case PLAYER_HOTBAR -> isLogicalSlotInRange(slotRef.logicalSlotIndex(), PLAYER_HOTBAR_SIZE);
+            case PLAYER_MAIN_INVENTORY -> isLogicalSlotInRange(slotRef.logicalSlotIndex(), PLAYER_MAIN_INVENTORY_SIZE);
+            case PLAYER_OFFHAND -> slotRef.logicalSlotIndex() == 0;
+            default -> false;
+        };
+    }
+
     public static Optional<HostSlotRef> forPlayerInventorySlot(Player player, AbstractContainerMenu menu, Slot slot) {
         if (slot == null || menu == null) {
             return Optional.empty();
