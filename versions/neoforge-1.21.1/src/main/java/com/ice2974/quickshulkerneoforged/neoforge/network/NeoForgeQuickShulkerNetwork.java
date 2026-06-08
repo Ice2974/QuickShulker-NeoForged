@@ -2,6 +2,7 @@ package com.ice2974.quickshulkerneoforged.neoforge.network;
 
 import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickOpenHandler;
+import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeShulkerBundlingHandler;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeServices;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
@@ -26,6 +27,15 @@ public final class NeoForgeQuickShulkerNetwork {
             (payload, context) -> {
                 if (context.player() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                     NeoForgeQuickOpenHandler.handle(serverPlayer, payload.intent(), NeoForgeServices.SHULKER_SESSIONS);
+                }
+            }
+        );
+        event.registrar(PROTOCOL_VERSION).playToServer(
+            NeoForgeShulkerBundlingPayload.TYPE,
+            NeoForgeShulkerBundlingPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                    NeoForgeShulkerBundlingHandler.handle(serverPlayer, payload.intent());
                 }
             }
         );
@@ -62,6 +72,10 @@ public final class NeoForgeQuickShulkerNetwork {
     }
 
     public static void sendOpenHostItem(NeoForgeOpenHostItemPayload payload) {
+        PacketDistributor.sendToServer(payload);
+    }
+
+    public static void sendShulkerBundling(NeoForgeShulkerBundlingPayload payload) {
         PacketDistributor.sendToServer(payload);
     }
 

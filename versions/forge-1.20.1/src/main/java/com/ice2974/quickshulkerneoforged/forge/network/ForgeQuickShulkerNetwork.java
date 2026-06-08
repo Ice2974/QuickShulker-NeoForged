@@ -3,6 +3,7 @@ package com.ice2974.quickshulkerneoforged.forge.network;
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
 import com.ice2974.quickshulkerneoforged.forge.ForgeQuickOpenHandler;
+import com.ice2974.quickshulkerneoforged.forge.ForgeShulkerBundlingHandler;
 import com.ice2974.quickshulkerneoforged.forge.ForgeShulkerSessionManager;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
@@ -37,17 +38,22 @@ public final class ForgeQuickShulkerNetwork {
             .decoder(ForgeOpenHostItemPacket::decode)
             .consumerMainThread((packet, contextSupplier) -> handleOpenHostItem(packet, contextSupplier, sessionManager))
             .add();
-        CHANNEL.messageBuilder(ForgeReopenPlayerInventoryPacket.class, 1, NetworkDirection.PLAY_TO_CLIENT)
+        CHANNEL.messageBuilder(ForgeShulkerBundlingPacket.class, 1, NetworkDirection.PLAY_TO_SERVER)
+            .encoder(ForgeShulkerBundlingPacket::encode)
+            .decoder(ForgeShulkerBundlingPacket::decode)
+            .consumerMainThread(ForgeQuickShulkerNetwork::handleShulkerBundling)
+            .add();
+        CHANNEL.messageBuilder(ForgeReopenPlayerInventoryPacket.class, 2, NetworkDirection.PLAY_TO_CLIENT)
             .encoder(ForgeReopenPlayerInventoryPacket::encode)
             .decoder(ForgeReopenPlayerInventoryPacket::decode)
             .consumerMainThread(ForgeQuickShulkerNetwork::handleReopenPlayerInventory)
             .add();
-        CHANNEL.messageBuilder(ForgeEnderChestFullSyncPacket.class, 2, NetworkDirection.PLAY_TO_CLIENT)
+        CHANNEL.messageBuilder(ForgeEnderChestFullSyncPacket.class, 3, NetworkDirection.PLAY_TO_CLIENT)
             .encoder(ForgeEnderChestFullSyncPacket::encode)
             .decoder(ForgeEnderChestFullSyncPacket::decode)
             .consumerMainThread(ForgeQuickShulkerNetwork::handleEnderChestFullSync)
             .add();
-        CHANNEL.messageBuilder(ForgeEnderChestSlotSyncPacket.class, 3, NetworkDirection.PLAY_TO_CLIENT)
+        CHANNEL.messageBuilder(ForgeEnderChestSlotSyncPacket.class, 4, NetworkDirection.PLAY_TO_CLIENT)
             .encoder(ForgeEnderChestSlotSyncPacket::encode)
             .decoder(ForgeEnderChestSlotSyncPacket::decode)
             .consumerMainThread(ForgeQuickShulkerNetwork::handleEnderChestSlotSync)
@@ -68,6 +74,10 @@ public final class ForgeQuickShulkerNetwork {
     }
 
     public static void sendOpenHostItem(ForgeOpenHostItemPacket packet) {
+        CHANNEL.sendToServer(packet);
+    }
+
+    public static void sendShulkerBundling(ForgeShulkerBundlingPacket packet) {
         CHANNEL.sendToServer(packet);
     }
 
@@ -93,6 +103,18 @@ public final class ForgeQuickShulkerNetwork {
             packet.intent()
         );
         contextSupplier.get().setPacketHandled(true);
+    }
+
+    private static void handleShulkerBundling(
+        ForgeShulkerBundlingPacket packet,
+        Supplier<NetworkEvent.Context> contextSupplier
+    ) {
+        NetworkEvent.Context context = contextSupplier.get();
+        ServerPlayer player = context.getSender();
+        if (player != null) {
+            ForgeShulkerBundlingHandler.handle(player, packet.intent());
+        }
+        context.setPacketHandled(true);
     }
 
     private static void handleEnderChestFullSync(

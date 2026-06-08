@@ -4,6 +4,8 @@ import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.OpenHostItemIntent;
 import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
 import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryQueue;
+import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingAction;
+import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingIntent;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
@@ -14,6 +16,7 @@ import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickOpenRegistry;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickShulkerConfig;
 import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeOpenHostItemPayload;
 import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeQuickShulkerNetwork;
+import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeShulkerBundlingPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -23,6 +26,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.ShulkerBoxBlock;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -38,6 +43,7 @@ import java.util.List;
 @EventBusSubscriber(modid = QuickShulkerConstants.MOD_ID, value = Dist.CLIENT)
 public final class NeoForgeQuickShulkerClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(NeoForgeQuickShulkerClient.class);
+    private static boolean suppressNextInventoryRightRelease;
 
     private NeoForgeQuickShulkerClient() {
     }
@@ -96,25 +102,43 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
-        if (!hasAnyEnabledQuickOpenable()
-            || !NeoForgeQuickShulkerConfig.view().rightClickInInventory()
-            || !NeoForgeQuickShulkerConfig.view().rightClickToOpen()) {
-            return;
-        }
-
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
         if (player == null || event.getButton() != 1) {
             return;
         }
 
+        if (trySendBundlingIntent(player, event.getScreen())) {
+            suppressNextInventoryRightRelease = true;
+            event.setCanceled(true);
+            return;
+        }
+
+        if (!hasAnyEnabledQuickOpenable()
+            || !NeoForgeQuickShulkerConfig.view().rightClickInInventory()
+            || !NeoForgeQuickShulkerConfig.view().rightClickToOpen()) {
+            return;
+        }
+
         if (trySendHovered(player, event.getScreen(), QuickOpenTrigger.INVENTORY_RIGHT_CLICK)) {
+            suppressNextInventoryRightRelease = true;
             event.setCanceled(true);
         }
     }
 
     @SubscribeEvent
+    public static void onScreenMouseReleased(ScreenEvent.MouseButtonReleased.Pre event) {
+        if (event.getButton() != 1 || !suppressNextInventoryRightRelease) {
+            return;
+        }
+
+        suppressNextInventoryRightRelease = false;
+        event.setCanceled(true);
+    }
+
+    @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
+        suppressNextInventoryRightRelease = false;
         NeoForgeQuickOpenMouseRestore.onScreenInit(event.getScreen());
     }
 
@@ -215,6 +239,49 @@ public final class NeoForgeQuickShulkerClient {
         NeoForgeQuickShulkerNetwork.sendOpenHostItem(new NeoForgeOpenHostItemPayload(intent));
     }
 
+    private static boolean trySendBundlingIntent(Player player, Screen screen) {
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)
+            || player.getAbilities().instabuild
+            || containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu) {
+            return false;
+        }
+
+        Slot hoveredSlot = containerScreen.getSlotUnderMouse();
+        if (hoveredSlot == null || !hoveredSlot.hasItem()) {
+            return false;
+        }
+
+        Optional<HostSlotRef> hostSlot = NeoForgeHostSlotResolver.forPlayerInventorySlot(player, containerScreen.getMenu(), hoveredSlot);
+        if (hostSlot.isEmpty()) {
+            return false;
+        }
+
+        ItemStack carried = containerScreen.getMenu().getCarried();
+        ItemStack hoveredStack = hoveredSlot.getItem();
+        if (NeoForgeQuickShulkerConfig.view().supportsBundlingInsert()
+            && !carried.isEmpty()
+            && !isShulkerBox(carried)
+            && isSingleShulkerBox(hoveredStack)) {
+            sendBundlingIntent(new ShulkerBundlingIntent(ShulkerBundlingAction.INSERT, hostSlot.get()));
+            return true;
+        }
+
+        if (NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()
+            && isSingleShulkerBox(carried)
+            && !hoveredStack.isEmpty()
+            && !isShulkerBox(hoveredStack)
+            && hoveredStack.getItem().canFitInsideContainerItems()) {
+            sendBundlingIntent(new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, hostSlot.get()));
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void sendBundlingIntent(ShulkerBundlingIntent intent) {
+        NeoForgeQuickShulkerNetwork.sendShulkerBundling(new NeoForgeShulkerBundlingPayload(intent));
+    }
+
     public static void schedulePendingInventoryReopenAndProcess(ReopenPlayerInventoryIntent intent) {
         ReopenPlayerInventoryQueue.schedule(intent);
         processPendingInventoryReopen();
@@ -299,6 +366,14 @@ public final class NeoForgeQuickShulkerClient {
             || NeoForgeQuickShulkerConfig.view().quickStonecutter()
             || NeoForgeQuickShulkerConfig.view().quickEnderChest()
             || NeoForgeQuickShulkerConfig.view().quickAnvil();
+    }
+
+    private static boolean isSingleShulkerBox(ItemStack stack) {
+        return !stack.isEmpty() && stack.getCount() == 1 && isShulkerBox(stack);
+    }
+
+    private static boolean isShulkerBox(ItemStack stack) {
+        return !stack.isEmpty() && Block.byItem(stack.getItem()) instanceof ShulkerBoxBlock;
     }
 
     private static void processPendingInventoryReopen() {

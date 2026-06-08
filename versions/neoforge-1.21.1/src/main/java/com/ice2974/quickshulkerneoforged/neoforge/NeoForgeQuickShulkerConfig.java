@@ -42,10 +42,10 @@ public final class NeoForgeQuickShulkerConfig {
 
         builder.push("interaction");
         SUPPORTS_BUNDLING_INSERT = builder
-            .comment("Reserved for a future shulker interaction where right clicking a shulker box with an item inserts it.")
+            .comment("Allow right clicking a player-inventory shulker box with a carried item to insert the carried item.")
             .define("supportsBundlingInsert", DEFAULTS.supportsBundlingInsert());
         SUPPORTS_BUNDLING_PICKUP = builder
-            .comment("Reserved for a future shulker interaction where right clicking an item with a shulker box inserts the item into the shulker box.")
+            .comment("Allow right clicking a player-inventory item with a carried shulker box to insert the hovered item.")
             .define("supportsBundlingPickup", DEFAULTS.supportsBundlingPickup());
         SUPPORTS_BUNDLING_TRANSFER = builder
             .comment("Reserved for a future shulker interaction where right clicking a shulker box with another shulker box transfers items.")
