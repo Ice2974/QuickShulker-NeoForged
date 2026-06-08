@@ -8,9 +8,15 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import java.lang.reflect.Field;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ForgeHostSlotResolver {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ForgeHostSlotResolver.class);
+    private static final String CREATIVE_SLOT_WRAPPER_CLASS =
+        "net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen$SlotWrapper";
     private static final int PLAYER_HOTBAR_SIZE = 9;
     private static final int PLAYER_MAIN_INVENTORY_SIZE = 27;
     private static final int PLAYER_MAIN_INVENTORY_OFFSET = 9;
@@ -60,11 +66,16 @@ public final class ForgeHostSlotResolver {
     }
 
     public static Optional<HostSlotRef> forPlayerInventorySlot(Player player, Slot slot, int menuSlotIndex) {
-        if (slot == null || slot.container != player.getInventory()) {
+        if (slot == null) {
             return Optional.empty();
         }
 
-        int containerSlot = slot.getSlotIndex();
+        Slot effectiveSlot = unwrapSlot(slot);
+        if (effectiveSlot.container != player.getInventory()) {
+            return Optional.empty();
+        }
+
+        int containerSlot = effectiveSlot.getSlotIndex();
         if (containerSlot >= 0 && containerSlot < PLAYER_HOTBAR_SIZE) {
             return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_HOTBAR, containerSlot, menuSlotIndex));
         }
@@ -80,6 +91,24 @@ public final class ForgeHostSlotResolver {
             return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, menuSlotIndex));
         }
         return Optional.empty();
+    }
+
+    private static Slot unwrapSlot(Slot slot) {
+        if (!slot.getClass().getName().equals(CREATIVE_SLOT_WRAPPER_CLASS)) {
+            return slot;
+        }
+
+        try {
+            Field targetField = slot.getClass().getDeclaredField("target");
+            targetField.setAccessible(true);
+            Object target = targetField.get(slot);
+            if (target instanceof Slot targetSlot) {
+                return targetSlot;
+            }
+        } catch (ReflectiveOperationException exception) {
+            LOGGER.debug("Failed to unwrap creative slot wrapper for shulker bundling.", exception);
+        }
+        return slot;
     }
 
     private static boolean isLogicalSlotInRange(int logicalSlotIndex, int size) {

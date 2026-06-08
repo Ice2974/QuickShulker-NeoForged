@@ -32,8 +32,7 @@
 服务端收到后会重新读取当前真实 carried stack 和真实宿主槽位 `ItemStack`，重新校验：
 
 * `supportsBundlingInsert()` 已开启
-* 玩家当前不是创造模式
-* 当前不是 QuickShulker quick-open 菜单
+* 当前不是 QuickShulker quick-open 菜单中的当前宿主槽位
 * carried stack 非空
 * carried stack 不是潜影盒
 * 目标槽位当前仍是单个潜影盒
@@ -58,8 +57,7 @@
 服务端收到后会重新读取当前真实 carried stack 和真实目标槽位 `ItemStack`，重新校验：
 
 * `supportsBundlingPickup()` 已开启
-* 玩家当前不是创造模式
-* 当前不是 QuickShulker quick-open 菜单
+* 当前不是 QuickShulker quick-open 菜单中的当前宿主槽位
 * carried stack 当前仍是单个潜影盒
 * 目标槽位当前仍是普通可放入容器的物品
 * 目标槽位物品不是潜影盒
@@ -106,29 +104,45 @@
 
 只有服务端重校验通过后才提交 helper 结果，并在提交后调用菜单同步。
 
-## 当前限制
+创造模式是一个额外特例：
+
+* 客户端会随 bundling C2S 一并发送当前 cursor `ItemStack` 副本
+* 服务端只在 `instabuild` 玩家上使用这个 cursor 副本作为 carried 输入
+* 非创造模式仍然只信服务端 `containerMenu.getCarried()`
+
+这样做的原因是创造背包中的 cursor 物品并不总能像生存模式那样直接从服务端菜单状态读取到。
+
+创造模式提交成功后，还会额外执行更强的菜单同步：
+
+* `containerMenu.broadcastFullState()`
+* `inventoryMenu.sendAllDataToRemote()`
+
+这样可以把 cursor 与玩家背包槽位一起强制同步回客户端，尽量避免创造模式下的残影、假消失或关背包后回滚。
+
+## 当前行为边界
 
 ### 创造模式
 
-为了优先保证多人和数据安全，本阶段对创造模式玩家禁用 bundling。
+本阶段现在允许创造模式执行 `insert` / `pickup insert`。
 
-也就是说：
+实现上仍保持和生存模式一致的安全边界：
 
-* Forge 1.20.1：创造模式不支持本阶段 bundling
-* NeoForge 1.21.1：创造模式不支持本阶段 bundling
+* 客户端只发送动作类型和 `HostSlotRef`
+* 服务端重新读取当前真实目标槽位
+* 服务端对创造模式使用客户端随包附带的 cursor 副本作为 carried 输入
+* 只有服务端重校验通过后才提交结果并同步菜单
 
-这属于阶段 4B 的已知限制。
+另外，Forge 1.20.1 与 NeoForge 1.21.1 都会在创造背包下先解包 Creative `SlotWrapper`，再映射到玩家真实背包槽位。
 
 ### quick-open 菜单
 
-为了避免与当前 quick-open 宿主锁定、关闭保存和会话收尾路径发生耦合，本阶段不允许在 QuickShulker quick-open 菜单内执行 bundling。
+为了避免与当前 quick-open 宿主锁定、关闭保存和会话收尾路径发生耦合，本阶段不允许对当前 quick-open 宿主槽位执行 bundling。
 
 也就是说：
 
-* 只在普通背包 / 容器界面中，对“玩家自身背包槽位”启用 bundling
-* QuickShulker quick-open 菜单内，即使目标不是当前宿主，也先整体禁用 bundling
-
-这同样属于阶段 4B 的已知限制。
+* 只对“玩家自身背包槽位”启用 bundling
+* 如果当前已经打开 QuickShulker quick-open 菜单，且右键目标就是当前宿主槽位，则拒绝 bundling
+* 不恢复 `rightClickClose`
 
 ## 不包含内容
 
@@ -165,9 +179,10 @@
 
 * Forge / NeoForge 单人启动
 * 客户端 + 服务端双端安装
-* `insert`
-* `pickup insert`
-* 失败条件下物品不变
+* 生存模式 `insert`
+* 生存模式 `pickup insert`
+* 创造模式 `insert`
+* 创造模式 `pickup insert`
 * 满潜影盒时不复制不丢失
-* quick-open 菜单内不会触发 bundling
-* 创造模式下不会触发 bundling
+* 失败条件下物品不变
+* quick-open 当前宿主槽位不会触发 bundling

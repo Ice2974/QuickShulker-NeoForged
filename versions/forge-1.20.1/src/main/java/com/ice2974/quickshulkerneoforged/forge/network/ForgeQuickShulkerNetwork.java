@@ -112,7 +112,7 @@ public final class ForgeQuickShulkerNetwork {
         NetworkEvent.Context context = contextSupplier.get();
         ServerPlayer player = context.getSender();
         if (player != null) {
-            ForgeShulkerBundlingHandler.handle(player, packet.intent());
+            ForgeShulkerBundlingHandler.handle(player, packet.intent(), packet.cursorStack());
         }
         context.setPacketHandled(true);
     }

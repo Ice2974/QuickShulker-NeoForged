@@ -8,6 +8,7 @@ import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingAction;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingIntent;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
+import com.ice2974.quickshulkerneoforged.common.open.HostIdentity;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import com.ice2974.quickshulkerneoforged.forge.ForgeHostSlotResolver;
 import com.ice2974.quickshulkerneoforged.forge.ForgeItemSnapshots;
@@ -231,9 +232,7 @@ public final class ForgeQuickShulkerClient {
     }
 
     private static boolean trySendBundlingIntent(Player player, Screen screen) {
-        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)
-            || player.getAbilities().instabuild
-            || containerScreen.getMenu() instanceof ForgeQuickOpenMenu) {
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return false;
         }
 
@@ -244,6 +243,10 @@ public final class ForgeQuickShulkerClient {
 
         Optional<HostSlotRef> hostSlot = ForgeHostSlotResolver.forPlayerInventorySlot(player, hoveredSlot, hoveredSlot.index);
         if (hostSlot.isEmpty()) {
+            return false;
+        }
+        if (containerScreen.getMenu() instanceof ForgeQuickOpenMenu quickOpenMenu
+            && HostIdentity.sameSlot(quickOpenMenu.hostSlotRef(), hostSlot.get())) {
             return false;
         }
 
@@ -270,7 +273,10 @@ public final class ForgeQuickShulkerClient {
     }
 
     private static void sendBundlingIntent(ShulkerBundlingIntent intent) {
-        ForgeQuickShulkerNetwork.sendShulkerBundling(new ForgeShulkerBundlingPacket(intent));
+        ItemStack carried = Minecraft.getInstance().player == null
+            ? ItemStack.EMPTY
+            : Minecraft.getInstance().player.containerMenu.getCarried().copy();
+        ForgeQuickShulkerNetwork.sendShulkerBundling(new ForgeShulkerBundlingPacket(intent, carried));
     }
 
     public static void schedulePendingInventoryReopenAndProcess(ReopenPlayerInventoryIntent intent) {

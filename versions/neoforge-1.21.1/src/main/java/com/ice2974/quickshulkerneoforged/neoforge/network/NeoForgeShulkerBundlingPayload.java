@@ -9,8 +9,12 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 
-public record NeoForgeShulkerBundlingPayload(ShulkerBundlingIntent intent) implements CustomPacketPayload {
+public record NeoForgeShulkerBundlingPayload(
+    ShulkerBundlingIntent intent,
+    ItemStack cursorStack
+) implements CustomPacketPayload {
     private static final int MAX_TEXT_FIELD_LENGTH = 64;
 
     public static final Type<NeoForgeShulkerBundlingPayload> TYPE =
@@ -22,7 +26,7 @@ public record NeoForgeShulkerBundlingPayload(ShulkerBundlingIntent intent) imple
         return new NeoForgeShulkerBundlingPayload(new ShulkerBundlingIntent(
             ShulkerBundlingAction.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH)),
             new HostSlotRef(HostStorageScope.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH)), buf.readVarInt(), buf.readVarInt())
-        ));
+        ), ItemStack.STREAM_CODEC.decode(buf));
     }
 
     public void encode(RegistryFriendlyByteBuf buf) {
@@ -30,6 +34,7 @@ public record NeoForgeShulkerBundlingPayload(ShulkerBundlingIntent intent) imple
         buf.writeUtf(intent.hostSlot().scope().name());
         buf.writeVarInt(intent.hostSlot().logicalSlotIndex());
         buf.writeVarInt(intent.hostSlot().menuSlotIndex());
+        ItemStack.STREAM_CODEC.encode(buf, cursorStack);
     }
 
     @Override

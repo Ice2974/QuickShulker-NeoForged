@@ -35,7 +35,7 @@ public final class NeoForgeQuickShulkerNetwork {
             NeoForgeShulkerBundlingPayload.STREAM_CODEC,
             (payload, context) -> {
                 if (context.player() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-                    NeoForgeShulkerBundlingHandler.handle(serverPlayer, payload.intent());
+                    NeoForgeShulkerBundlingHandler.handle(serverPlayer, payload.intent(), payload.cursorStack());
                 }
             }
         );

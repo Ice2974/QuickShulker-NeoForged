@@ -8,6 +8,7 @@ import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingAction;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingIntent;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
 import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
+import com.ice2974.quickshulkerneoforged.common.open.HostIdentity;
 import com.ice2974.quickshulkerneoforged.common.open.QuickOpenTrigger;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeHostSlotResolver;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeItemSnapshots;
@@ -240,9 +241,7 @@ public final class NeoForgeQuickShulkerClient {
     }
 
     private static boolean trySendBundlingIntent(Player player, Screen screen) {
-        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)
-            || player.getAbilities().instabuild
-            || containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu) {
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return false;
         }
 
@@ -253,6 +252,10 @@ public final class NeoForgeQuickShulkerClient {
 
         Optional<HostSlotRef> hostSlot = NeoForgeHostSlotResolver.forPlayerInventorySlot(player, containerScreen.getMenu(), hoveredSlot);
         if (hostSlot.isEmpty()) {
+            return false;
+        }
+        if (containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu quickOpenMenu
+            && HostIdentity.sameSlot(quickOpenMenu.hostSlotRef(), hostSlot.get())) {
             return false;
         }
 
@@ -279,7 +282,10 @@ public final class NeoForgeQuickShulkerClient {
     }
 
     private static void sendBundlingIntent(ShulkerBundlingIntent intent) {
-        NeoForgeQuickShulkerNetwork.sendShulkerBundling(new NeoForgeShulkerBundlingPayload(intent));
+        ItemStack carried = Minecraft.getInstance().player == null
+            ? ItemStack.EMPTY
+            : Minecraft.getInstance().player.containerMenu.getCarried().copy();
+        NeoForgeQuickShulkerNetwork.sendShulkerBundling(new NeoForgeShulkerBundlingPayload(intent, carried));
     }
 
     public static void schedulePendingInventoryReopenAndProcess(ReopenPlayerInventoryIntent intent) {
