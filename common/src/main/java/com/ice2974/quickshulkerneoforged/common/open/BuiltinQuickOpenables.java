@@ -9,7 +9,6 @@ public final class BuiltinQuickOpenables {
         true,
         true,
         true,
-        true,
         true
     );
 
@@ -18,7 +17,6 @@ public final class BuiltinQuickOpenables {
         QuickOpenableCategory.ENDER_CHEST,
         QuickOpenMenuKind.ENDER_CHEST,
         QuickOpenConfigGate.QUICK_ENDER_CHEST,
-        true,
         true,
         true,
         true,
@@ -33,7 +31,6 @@ public final class BuiltinQuickOpenables {
         true,
         false,
         true,
-        true,
         true
     );
 
@@ -45,7 +42,6 @@ public final class BuiltinQuickOpenables {
         true,
         false,
         true,
-        true,
         true
     );
 
@@ -56,7 +52,6 @@ public final class BuiltinQuickOpenables {
         QuickOpenConfigGate.QUICK_ANVIL,
         true,
         false,
-        true,
         true,
         true
     );

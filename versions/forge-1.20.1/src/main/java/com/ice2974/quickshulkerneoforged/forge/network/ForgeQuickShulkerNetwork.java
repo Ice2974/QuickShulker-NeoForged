@@ -1,7 +1,6 @@
 package com.ice2974.quickshulkerneoforged.forge.network;
 
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
-import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
 import com.ice2974.quickshulkerneoforged.forge.ForgeQuickOpenHandler;
 import com.ice2974.quickshulkerneoforged.forge.ForgeShulkerBundlingHandler;
 import com.ice2974.quickshulkerneoforged.forge.ForgeShulkerSessionManager;
@@ -43,17 +42,12 @@ public final class ForgeQuickShulkerNetwork {
             .decoder(ForgeShulkerBundlingPacket::decode)
             .consumerMainThread(ForgeQuickShulkerNetwork::handleShulkerBundling)
             .add();
-        CHANNEL.messageBuilder(ForgeReopenPlayerInventoryPacket.class, 2, NetworkDirection.PLAY_TO_CLIENT)
-            .encoder(ForgeReopenPlayerInventoryPacket::encode)
-            .decoder(ForgeReopenPlayerInventoryPacket::decode)
-            .consumerMainThread(ForgeQuickShulkerNetwork::handleReopenPlayerInventory)
-            .add();
-        CHANNEL.messageBuilder(ForgeEnderChestFullSyncPacket.class, 3, NetworkDirection.PLAY_TO_CLIENT)
+        CHANNEL.messageBuilder(ForgeEnderChestFullSyncPacket.class, 2, NetworkDirection.PLAY_TO_CLIENT)
             .encoder(ForgeEnderChestFullSyncPacket::encode)
             .decoder(ForgeEnderChestFullSyncPacket::decode)
             .consumerMainThread(ForgeQuickShulkerNetwork::handleEnderChestFullSync)
             .add();
-        CHANNEL.messageBuilder(ForgeEnderChestSlotSyncPacket.class, 4, NetworkDirection.PLAY_TO_CLIENT)
+        CHANNEL.messageBuilder(ForgeEnderChestSlotSyncPacket.class, 3, NetworkDirection.PLAY_TO_CLIENT)
             .encoder(ForgeEnderChestSlotSyncPacket::encode)
             .decoder(ForgeEnderChestSlotSyncPacket::decode)
             .consumerMainThread(ForgeQuickShulkerNetwork::handleEnderChestSlotSync)
@@ -81,28 +75,12 @@ public final class ForgeQuickShulkerNetwork {
         CHANNEL.sendToServer(packet);
     }
 
-    public static void sendReopenPlayerInventory(ServerPlayer player, ReopenPlayerInventoryIntent intent) {
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ForgeReopenPlayerInventoryPacket(intent));
-    }
-
     public static void sendEnderChestFullSync(ServerPlayer player, String sessionId, ItemStack[] stacks) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ForgeEnderChestFullSyncPacket(sessionId, Arrays.asList(stacks)));
     }
 
     public static void sendEnderChestSlotSync(ServerPlayer player, String sessionId, int slotIndex, ItemStack stack) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ForgeEnderChestSlotSyncPacket(sessionId, slotIndex, stack));
-    }
-
-    private static void handleReopenPlayerInventory(
-        ForgeReopenPlayerInventoryPacket packet,
-        Supplier<NetworkEvent.Context> contextSupplier
-    ) {
-        invokeClientHandler(
-            "schedulePendingInventoryReopenAndProcess",
-            new Class<?>[]{ReopenPlayerInventoryIntent.class},
-            packet.intent()
-        );
-        contextSupplier.get().setPacketHandled(true);
     }
 
     private static void handleShulkerBundling(

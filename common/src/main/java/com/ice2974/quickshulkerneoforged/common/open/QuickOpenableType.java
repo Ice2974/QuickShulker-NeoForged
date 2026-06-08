@@ -10,8 +10,7 @@ public record QuickOpenableType(
     boolean requiresSingleHostStack,
     boolean supportsBundlingOperations,
     boolean canOpenInHand,
-    boolean lockHostSlotWhileOpen,
-    boolean reopenPlayerInventoryAfterClose
+    boolean lockHostSlotWhileOpen
 ) {
     public QuickOpenableType {
         Objects.requireNonNull(id, "id");

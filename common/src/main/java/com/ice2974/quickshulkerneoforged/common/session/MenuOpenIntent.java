@@ -9,8 +9,7 @@ public record MenuOpenIntent(
     String quickOpenableTypeId,
     QuickOpenMenuKind menuKind,
     HostItemReference hostItem,
-    boolean lockHostSlotWhileOpen,
-    boolean reopenPlayerInventoryAfterClose
+    boolean lockHostSlotWhileOpen
 ) {
     public MenuOpenIntent {
         Objects.requireNonNull(sessionId, "sessionId");

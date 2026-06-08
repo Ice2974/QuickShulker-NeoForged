@@ -5,6 +5,5 @@ public enum QuickOpenTrigger {
     INVENTORY_KEYBIND,
     HAND_RIGHT_CLICK,
     INVENTORY_RIGHT_CLICK,
-    INTERNAL_REOPEN,
     UNKNOWN
 }

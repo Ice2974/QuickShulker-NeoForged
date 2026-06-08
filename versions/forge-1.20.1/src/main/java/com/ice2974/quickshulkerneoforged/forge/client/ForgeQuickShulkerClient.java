@@ -2,8 +2,6 @@ package com.ice2974.quickshulkerneoforged.forge.client;
 
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.OpenHostItemIntent;
-import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
-import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryQueue;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingAction;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingIntent;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
@@ -20,7 +18,6 @@ import com.ice2974.quickshulkerneoforged.forge.network.ForgeQuickShulkerNetwork;
 import com.ice2974.quickshulkerneoforged.forge.network.ForgeShulkerBundlingPacket;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
@@ -56,7 +53,6 @@ public final class ForgeQuickShulkerClient {
         }
 
         ForgeQuickOpenMouseRestore.onClientTick();
-        processPendingInventoryReopen();
 
         if (!hasAnyEnabledQuickOpenable()
             || !ForgeQuickShulkerConfig.view().keybindInHand()) {
@@ -279,11 +275,6 @@ public final class ForgeQuickShulkerClient {
         ForgeQuickShulkerNetwork.sendShulkerBundling(new ForgeShulkerBundlingPacket(intent, carried));
     }
 
-    public static void schedulePendingInventoryReopenAndProcess(ReopenPlayerInventoryIntent intent) {
-        ReopenPlayerInventoryQueue.schedule(intent);
-        processPendingInventoryReopen();
-    }
-
     public static void applyEnderChestFullSync(String sessionId, List<ItemStack> stacks) {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
@@ -371,32 +362,5 @@ public final class ForgeQuickShulkerClient {
 
     private static boolean isShulkerBox(ItemStack stack) {
         return !stack.isEmpty() && Block.byItem(stack.getItem()) instanceof ShulkerBoxBlock;
-    }
-
-    private static void processPendingInventoryReopen() {
-        ReopenPlayerInventoryQueue.PendingReopen pendingReopen = ReopenPlayerInventoryQueue.pending();
-        if (pendingReopen == null) {
-            return;
-        }
-
-        Minecraft minecraft = Minecraft.getInstance();
-        if (pendingReopen.isExpired(System.nanoTime())) {
-            LOGGER.debug("Dropped pending inventory reopen after timeout: sessionId={}", pendingReopen.sessionId());
-            ReopenPlayerInventoryQueue.clear();
-            return;
-        }
-        if (minecraft.player == null) {
-            return;
-        }
-        if (minecraft.screen instanceof InventoryScreen) {
-            ReopenPlayerInventoryQueue.clear();
-            return;
-        }
-        if (minecraft.screen != null) {
-            return;
-        }
-
-        minecraft.setScreen(new InventoryScreen(minecraft.player));
-        ReopenPlayerInventoryQueue.clear();
     }
 }

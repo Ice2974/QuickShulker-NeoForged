@@ -2,6 +2,8 @@
 
 ## 概要
 
+注意：该阶段功能已因复制物品风险在后续阶段删除，当前行为以 `stage-0.2.0-p2x-remove-reopen-inventory.md` 和源码为准。
+
 本阶段实现了 Forge 1.20.1 与 NeoForge 1.21.1 的 `reopen inventory` S2C 网络基础设施，并把它接入 quick-open session 的正常关闭路径。
 
 当前行为边界：

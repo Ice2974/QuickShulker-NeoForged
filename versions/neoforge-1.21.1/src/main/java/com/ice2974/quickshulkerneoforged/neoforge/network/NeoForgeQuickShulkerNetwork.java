@@ -1,6 +1,5 @@
 package com.ice2974.quickshulkerneoforged.neoforge.network;
 
-import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeQuickOpenHandler;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeShulkerBundlingHandler;
 import com.ice2974.quickshulkerneoforged.neoforge.NeoForgeServices;
@@ -40,15 +39,6 @@ public final class NeoForgeQuickShulkerNetwork {
             }
         );
         event.registrar(PROTOCOL_VERSION).playToClient(
-            NeoForgeReopenPlayerInventoryPayload.TYPE,
-            NeoForgeReopenPlayerInventoryPayload.STREAM_CODEC,
-            (payload, context) -> invokeClientHandler(
-                "schedulePendingInventoryReopenAndProcess",
-                new Class<?>[]{ReopenPlayerInventoryIntent.class},
-                payload.intent()
-            )
-        );
-        event.registrar(PROTOCOL_VERSION).playToClient(
             NeoForgeEnderChestFullSyncPayload.TYPE,
             NeoForgeEnderChestFullSyncPayload.STREAM_CODEC,
             (payload, context) -> invokeClientHandler(
@@ -77,10 +67,6 @@ public final class NeoForgeQuickShulkerNetwork {
 
     public static void sendShulkerBundling(NeoForgeShulkerBundlingPayload payload) {
         PacketDistributor.sendToServer(payload);
-    }
-
-    public static void sendReopenPlayerInventory(ServerPlayer player, ReopenPlayerInventoryIntent intent) {
-        PacketDistributor.sendToPlayer(player, new NeoForgeReopenPlayerInventoryPayload(intent));
     }
 
     public static void sendEnderChestFullSync(ServerPlayer player, String sessionId, ItemStack[] stacks) {

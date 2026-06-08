@@ -6,8 +6,7 @@ public record QuickOpenRequest(
     String requestedTypeId,
     HostSlotRef hostSlot,
     QuickOpenTrigger trigger,
-    boolean initiatedFromClient,
-    boolean shouldReturnToPlayerInventory
+    boolean initiatedFromClient
 ) {
     public QuickOpenRequest {
         Objects.requireNonNull(requestedTypeId, "requestedTypeId");

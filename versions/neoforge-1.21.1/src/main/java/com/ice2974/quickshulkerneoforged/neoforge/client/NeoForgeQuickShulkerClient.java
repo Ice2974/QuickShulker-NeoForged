@@ -2,8 +2,6 @@ package com.ice2974.quickshulkerneoforged.neoforge.client;
 
 import com.ice2974.quickshulkerneoforged.QuickShulkerConstants;
 import com.ice2974.quickshulkerneoforged.common.network.OpenHostItemIntent;
-import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryIntent;
-import com.ice2974.quickshulkerneoforged.common.network.ReopenPlayerInventoryQueue;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingAction;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingIntent;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
@@ -21,7 +19,6 @@ import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeShulkerBundlin
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -52,7 +49,6 @@ public final class NeoForgeQuickShulkerClient {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         NeoForgeQuickOpenMouseRestore.onClientTick();
-        processPendingInventoryReopen();
 
         if (!hasAnyEnabledQuickOpenable()
             || !NeoForgeQuickShulkerConfig.view().keybindInHand()) {
@@ -288,11 +284,6 @@ public final class NeoForgeQuickShulkerClient {
         NeoForgeQuickShulkerNetwork.sendShulkerBundling(new NeoForgeShulkerBundlingPayload(intent, carried));
     }
 
-    public static void schedulePendingInventoryReopenAndProcess(ReopenPlayerInventoryIntent intent) {
-        ReopenPlayerInventoryQueue.schedule(intent);
-        processPendingInventoryReopen();
-    }
-
     public static void applyEnderChestFullSync(String sessionId, List<ItemStack> stacks) {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
@@ -380,32 +371,5 @@ public final class NeoForgeQuickShulkerClient {
 
     private static boolean isShulkerBox(ItemStack stack) {
         return !stack.isEmpty() && Block.byItem(stack.getItem()) instanceof ShulkerBoxBlock;
-    }
-
-    private static void processPendingInventoryReopen() {
-        ReopenPlayerInventoryQueue.PendingReopen pendingReopen = ReopenPlayerInventoryQueue.pending();
-        if (pendingReopen == null) {
-            return;
-        }
-
-        Minecraft minecraft = Minecraft.getInstance();
-        if (pendingReopen.isExpired(System.nanoTime())) {
-            LOGGER.debug("Dropped pending inventory reopen after timeout: sessionId={}", pendingReopen.sessionId());
-            ReopenPlayerInventoryQueue.clear();
-            return;
-        }
-        if (minecraft.player == null) {
-            return;
-        }
-        if (minecraft.screen instanceof InventoryScreen) {
-            ReopenPlayerInventoryQueue.clear();
-            return;
-        }
-        if (minecraft.screen != null) {
-            return;
-        }
-
-        minecraft.setScreen(new InventoryScreen(minecraft.player));
-        ReopenPlayerInventoryQueue.clear();
     }
 }

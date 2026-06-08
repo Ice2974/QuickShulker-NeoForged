@@ -59,7 +59,6 @@ public interface QuickShulkerConfigView {
             case INVENTORY_KEYBIND -> keybindInInventory();
             case HAND_RIGHT_CLICK -> rightClickToOpen();
             case INVENTORY_RIGHT_CLICK -> rightClickToOpen() && rightClickInInventory();
-            case INTERNAL_REOPEN -> true;
             case UNKNOWN -> false;
         };
     }
