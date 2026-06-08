@@ -1,0 +1,19 @@
+package com.ice2974.quickshulkerneoforged.common.bundling;
+
+public enum ShulkerBundlingFailure {
+    NONE,
+    SOURCE_EMPTY,
+    TARGET_EMPTY,
+    TARGET_NOT_SHULKER,
+    SOURCE_NOT_SHULKER,
+    SOURCE_IS_SHULKER_ITEM,
+    TARGET_STACK_NOT_SINGLE,
+    SOURCE_STACK_NOT_SINGLE,
+    NO_SPACE,
+    NO_ITEMS_TO_EXTRACT,
+    INVALID_SLOT,
+    UNSUPPORTED_ITEM,
+    WOULD_NEST_SHULKER,
+    WRITE_REJECTED,
+    UNKNOWN
+}
