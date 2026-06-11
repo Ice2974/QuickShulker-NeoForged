@@ -2,7 +2,7 @@
 
 ## 概要
 
-注意：该阶段功能已因复制物品风险在后续阶段删除，当前行为以 `stage-0.2.0-p2x-remove-reopen-inventory.md` 和源码为准。
+注意：该阶段功能已因复制物品风险在后续阶段删除，当前行为以 `stage-0.2.0-p2x-remove-reopen-inventory.md`、`release-0.2.0.md` 和源码为准。
 
 本阶段只调整客户端 `reopen inventory` 的处理时序，目标是在服务端 `reopen` S2C 到达后，尽快在客户端主线程补一次 pending reopen 处理，尽量减少 quick-open 菜单关闭到玩家背包重新打开之间的空屏帧。
 

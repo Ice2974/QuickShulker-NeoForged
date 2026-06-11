@@ -4,7 +4,7 @@
 
 本阶段把末影箱 quick-open 的 inventory-trigger reopen 体验补齐到与现有可重开界面一致。
 
-注意：该阶段功能已因复制物品风险在后续阶段删除，当前行为以 `stage-0.2.0-p2x-remove-reopen-inventory.md` 和源码为准。
+注意：该阶段功能已因复制物品风险在后续阶段删除，当前行为以 `stage-0.2.0-p2x-remove-reopen-inventory.md`、`release-0.2.0.md` 和源码为准。
 
 现在当玩家从背包界面悬停末影箱，并通过快捷键或右键打开 quick-open 菜单时，在正常按 `Esc` / `E` 关闭后，也会像潜影盒一样回到玩家背包界面。
 
