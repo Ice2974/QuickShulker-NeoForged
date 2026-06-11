@@ -28,6 +28,7 @@ public final class ForgeShulkerBundlingHandler {
             case PICKUP_INSERT -> handlePickupInsert(player, intent, cursorStack);
             case EXTRACT -> handleExtract(player, intent, cursorStack);
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
+            case UNKNOWN -> LOGGER.debug("Rejected Forge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
         }
     }
 

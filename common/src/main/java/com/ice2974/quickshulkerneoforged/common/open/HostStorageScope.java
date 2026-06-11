@@ -7,5 +7,17 @@ public enum HostStorageScope {
     PLAYER_CONTAINER_MENU,
     CREATIVE_INVENTORY,
     ENDER_CHEST_PROXY,
-    UNKNOWN
+    UNKNOWN;
+
+    public static HostStorageScope fromSerializedName(String value) {
+        if (value == null) {
+            return UNKNOWN;
+        }
+
+        try {
+            return HostStorageScope.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            return UNKNOWN;
+        }
+    }
 }

@@ -27,6 +27,7 @@ public final class NeoForgeShulkerBundlingHandler {
             case PICKUP_INSERT -> handlePickupInsert(player, intent, cursorStack);
             case EXTRACT -> handleExtract(player, intent, cursorStack);
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
+            case UNKNOWN -> LOGGER.debug("Rejected NeoForge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
         }
     }
 

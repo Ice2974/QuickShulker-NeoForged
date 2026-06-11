@@ -12,8 +12,8 @@ public record ForgeShulkerBundlingPacket(ShulkerBundlingIntent intent, ItemStack
 
     public static ForgeShulkerBundlingPacket decode(FriendlyByteBuf buf) {
         return new ForgeShulkerBundlingPacket(new ShulkerBundlingIntent(
-            ShulkerBundlingAction.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH)),
-            new HostSlotRef(HostStorageScope.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH)), buf.readVarInt(), buf.readVarInt())
+            ShulkerBundlingAction.fromSerializedName(buf.readUtf(MAX_TEXT_FIELD_LENGTH)),
+            new HostSlotRef(HostStorageScope.fromSerializedName(buf.readUtf(MAX_TEXT_FIELD_LENGTH)), buf.readVarInt(), buf.readVarInt())
         ), buf.readItem());
     }
 

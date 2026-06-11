@@ -24,8 +24,8 @@ public record NeoForgeShulkerBundlingPayload(
 
     public static NeoForgeShulkerBundlingPayload decode(RegistryFriendlyByteBuf buf) {
         return new NeoForgeShulkerBundlingPayload(new ShulkerBundlingIntent(
-            ShulkerBundlingAction.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH)),
-            new HostSlotRef(HostStorageScope.valueOf(buf.readUtf(MAX_TEXT_FIELD_LENGTH)), buf.readVarInt(), buf.readVarInt())
+            ShulkerBundlingAction.fromSerializedName(buf.readUtf(MAX_TEXT_FIELD_LENGTH)),
+            new HostSlotRef(HostStorageScope.fromSerializedName(buf.readUtf(MAX_TEXT_FIELD_LENGTH)), buf.readVarInt(), buf.readVarInt())
         ), ItemStack.STREAM_CODEC.decode(buf));
     }
 

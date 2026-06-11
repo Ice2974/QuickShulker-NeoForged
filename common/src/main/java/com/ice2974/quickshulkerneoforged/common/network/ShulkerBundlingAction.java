@@ -4,5 +4,18 @@ public enum ShulkerBundlingAction {
     INSERT,
     PICKUP_INSERT,
     EXTRACT,
-    TRANSFER
+    TRANSFER,
+    UNKNOWN;
+
+    public static ShulkerBundlingAction fromSerializedName(String value) {
+        if (value == null) {
+            return UNKNOWN;
+        }
+
+        try {
+            return ShulkerBundlingAction.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            return UNKNOWN;
+        }
+    }
 }
