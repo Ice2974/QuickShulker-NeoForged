@@ -255,6 +255,13 @@ public final class ForgeQuickShulkerClient {
             return true;
         }
 
+        if (ForgeQuickShulkerConfig.view().supportsBundlingTransfer()
+            && isSingleShulkerBox(carried)
+            && isSingleShulkerBox(hoveredStack)) {
+            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.TRANSFER, hostSlot.get()));
+            return true;
+        }
+
         if (ForgeQuickShulkerConfig.view().supportsBundlingInsert()
             && !carried.isEmpty()
             && !isShulkerBox(carried)

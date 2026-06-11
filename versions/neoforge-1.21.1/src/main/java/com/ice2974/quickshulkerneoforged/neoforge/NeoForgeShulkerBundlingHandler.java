@@ -26,6 +26,7 @@ public final class NeoForgeShulkerBundlingHandler {
             case INSERT -> handleInsert(player, intent, cursorStack);
             case PICKUP_INSERT -> handlePickupInsert(player, intent, cursorStack);
             case EXTRACT -> handleExtract(player, intent, cursorStack);
+            case TRANSFER -> handleTransfer(player, intent, cursorStack);
         }
     }
 
@@ -135,6 +136,52 @@ public final class NeoForgeShulkerBundlingHandler {
         NeoForgeHostSlotResolver.set(player, intent.hostSlot(), result.extractedStack().orElseThrow().copy());
         syncPlayerInventory(player);
         clearCreativeServerCarriedAfterSync(player, intent, "extract");
+    }
+
+    private static void handleTransfer(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!NeoForgeQuickShulkerConfig.view().supportsBundlingTransfer()) {
+            return;
+        }
+        if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
+        if (!NeoForgeHostSlotResolver.isPlayerInventorySlotRef(intent.hostSlot())) {
+            LOGGER.debug("Rejected NeoForge transfer due to invalid host slot ref: {}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack targetShulker = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot());
+        if (!isSingleShulkerBox(targetShulker)) {
+            LOGGER.debug("Rejected NeoForge transfer due to non-single-shulker target stack: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack sourceShulker = resolvedCarried(player, cursorStack);
+        logCreativeResolvedCarried(player, intent, cursorStack, sourceShulker, "transfer");
+        if (!isSingleShulkerBox(sourceShulker)) {
+            LOGGER.debug("Rejected NeoForge transfer due to non-single-shulker carried stack: creative={}, count={}, empty={}",
+                player.getAbilities().instabuild, sourceShulker.getCount(), sourceShulker.isEmpty());
+            return;
+        }
+
+        ShulkerBundlingResult<ItemStack, ItemStack> result = HELPER.transferBetweenShulkers(sourceShulker, targetShulker);
+        if (!result.changed()
+            || result.updatedSourceContainerStack().isEmpty()
+            || result.updatedTargetContainerStack().isEmpty()) {
+            LOGGER.debug("Rejected NeoForge transfer after helper validation: failure={}, detail={}", result.failure(), result.detail());
+            return;
+        }
+
+        if (!isSingleShulkerBox(NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()))) {
+            LOGGER.debug("Rejected NeoForge transfer because target slot changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), result.updatedTargetContainerStack().orElseThrow().copy());
+        player.containerMenu.setCarried(result.updatedSourceContainerStack().orElseThrow().copy());
+        logCreativeSetCarried(player, intent, "transfer");
+        syncPlayerInventory(player);
+        clearCreativeServerCarriedAfterSync(player, intent, "transfer");
     }
 
     private static void syncPlayerInventory(ServerPlayer player) {

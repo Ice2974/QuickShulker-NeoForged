@@ -27,6 +27,7 @@ public final class ForgeShulkerBundlingHandler {
             case INSERT -> handleInsert(player, intent, cursorStack);
             case PICKUP_INSERT -> handlePickupInsert(player, intent, cursorStack);
             case EXTRACT -> handleExtract(player, intent, cursorStack);
+            case TRANSFER -> handleTransfer(player, intent, cursorStack);
         }
     }
 
@@ -136,6 +137,52 @@ public final class ForgeShulkerBundlingHandler {
         ForgeHostSlotResolver.set(player, intent.hostSlot(), result.extractedStack().orElseThrow().copy());
         syncPlayerInventory(player);
         clearCreativeServerCarriedAfterSync(player, intent, "extract");
+    }
+
+    private static void handleTransfer(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!ForgeQuickShulkerConfig.view().supportsBundlingTransfer()) {
+            return;
+        }
+        if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
+        if (!ForgeHostSlotResolver.isPlayerInventorySlotRef(intent.hostSlot())) {
+            LOGGER.debug("Rejected Forge transfer due to invalid host slot ref: {}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack targetShulker = ForgeHostSlotResolver.resolve(player, intent.hostSlot());
+        if (!isSingleShulkerBox(targetShulker)) {
+            LOGGER.debug("Rejected Forge transfer due to non-single-shulker target stack: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack sourceShulker = resolvedCarried(player, cursorStack);
+        logCreativeResolvedCarried(player, intent, cursorStack, sourceShulker, "transfer");
+        if (!isSingleShulkerBox(sourceShulker)) {
+            LOGGER.debug("Rejected Forge transfer due to non-single-shulker carried stack: creative={}, count={}, empty={}",
+                player.getAbilities().instabuild, sourceShulker.getCount(), sourceShulker.isEmpty());
+            return;
+        }
+
+        ShulkerBundlingResult<ItemStack, ItemStack> result = HELPER.transferBetweenShulkers(sourceShulker, targetShulker);
+        if (!result.changed()
+            || result.updatedSourceContainerStack().isEmpty()
+            || result.updatedTargetContainerStack().isEmpty()) {
+            LOGGER.debug("Rejected Forge transfer after helper validation: failure={}, detail={}", result.failure(), result.detail());
+            return;
+        }
+
+        if (!isSingleShulkerBox(ForgeHostSlotResolver.resolve(player, intent.hostSlot()))) {
+            LOGGER.debug("Rejected Forge transfer because target slot changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        ForgeHostSlotResolver.set(player, intent.hostSlot(), result.updatedTargetContainerStack().orElseThrow().copy());
+        player.containerMenu.setCarried(result.updatedSourceContainerStack().orElseThrow().copy());
+        logCreativeSetCarried(player, intent, "transfer");
+        syncPlayerInventory(player);
+        clearCreativeServerCarriedAfterSync(player, intent, "transfer");
     }
 
     private static void syncPlayerInventory(ServerPlayer player) {

@@ -160,6 +160,21 @@ class ShulkerBundlingRulesTest {
     }
 
     @Test
+    void transferSkipsNestedShulkerItemsButStillMovesNormalItems() {
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = ShulkerBundlingRules.transferContents(
+            contents(SHULKER_1, DIRT_8, EMPTY),
+            contents(EMPTY, EMPTY, EMPTY),
+            ADAPTER
+        );
+
+        assertTrue(result.success());
+        assertEquals(8, result.movedCount());
+        assertEquals(SHULKER_1, result.updatedSourceContainerStack().orElseThrow().get(0));
+        assertTrue(result.updatedSourceContainerStack().orElseThrow().get(1).isEmpty());
+        assertEquals(8, result.updatedTargetContainerStack().orElseThrow().get(0).count());
+    }
+
+    @Test
     void transferWithoutSpaceReturnsFailure() {
         ShulkerBundlingResult<List<FakeStack>, FakeStack> result = ShulkerBundlingRules.transferContents(
             contents(STONE_16, EMPTY),

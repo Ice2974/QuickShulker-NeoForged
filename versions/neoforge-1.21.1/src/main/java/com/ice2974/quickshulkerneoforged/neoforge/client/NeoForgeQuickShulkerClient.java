@@ -264,6 +264,13 @@ public final class NeoForgeQuickShulkerClient {
             return true;
         }
 
+        if (NeoForgeQuickShulkerConfig.view().supportsBundlingTransfer()
+            && isSingleShulkerBox(carried)
+            && isSingleShulkerBox(hoveredStack)) {
+            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.TRANSFER, hostSlot.get()));
+            return true;
+        }
+
         if (NeoForgeQuickShulkerConfig.view().supportsBundlingInsert()
             && !carried.isEmpty()
             && !isShulkerBox(carried)
