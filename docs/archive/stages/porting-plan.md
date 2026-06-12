@@ -1,8 +1,5 @@
 # QuickShulker 移植计划（阶段 2）
 
-> 历史开发记录：本文档记录早期阶段实现过程，不再作为当前实现状态的唯一依据。当前状态请以源码、README 和 `docs/releases/release-0.1.0.md` 为准。
-
-
 本文档基于以下参考源码目录的阅读结果整理：
 
 - `references/quickshulker-1.20`

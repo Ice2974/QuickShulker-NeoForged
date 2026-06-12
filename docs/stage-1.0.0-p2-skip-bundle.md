@@ -1,5 +1,7 @@
 # stage-2-skip-bundle
 
+> 历史更新：阶段 3 已实现潜影盒 mouse dragged 批量交互，并重新开放 `supportsMouseDragged` 配置 GUI。本文中关于 `supportsMouseDragged` 不显示、仅兼容保留或不得接入行为逻辑的描述只代表阶段 2 当时状态，当前行为以源码和 `docs/stage-3-mouse-dragged.md` 为准。Bundle 相关功能仍按本文结论主动跳过。
+
 ## 阶段目标
 
 本阶段按维护者决定，明确将 Minecraft Bundle 相关功能从 `1.0.0` 移植范围中主动排除。

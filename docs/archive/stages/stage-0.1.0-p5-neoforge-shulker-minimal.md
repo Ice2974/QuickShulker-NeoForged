@@ -1,8 +1,5 @@
 # 阶段 5：NeoForge 1.21.1 `shulker_box` 最小闭环
 
-> 历史开发记录：本文档记录早期阶段实现过程，不再作为当前实现状态的唯一依据。当前状态请以源码、README 和 `docs/releases/release-0.1.0.md` 为准。
-
-
 本阶段只在 `versions/neoforge-1.21.1` 中打通 `shulker_box` 的最小链路：
 
 - 客户端通过最小 key mapping 请求打开主手或副手中的单个潜影盒

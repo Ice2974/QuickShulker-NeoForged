@@ -1,5 +1,7 @@
 # stage-1-config-gui
 
+> 历史更新：阶段 3 已实现潜影盒 mouse dragged 批量交互，并重新开放 `supportsMouseDragged` 配置 GUI。本文中关于 `supportsMouseDragged` 仅为兼容字段的描述只代表阶段 1 当时状态，当前行为以源码和 `docs/stage-3-mouse-dragged.md` 为准。
+
 > 历史说明：本文档记录阶段 1 的配置 GUI 入口与修补内容。当前实现状态以源码、当前发布文档和后续阶段报告为准。
 
 ## 阶段 1 范围

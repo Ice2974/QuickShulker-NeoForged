@@ -1,8 +1,5 @@
 # 阶段 6B.5：quick-open 容器切换 UI polish
 
-> 历史开发记录：本文档记录早期阶段实现过程，不再作为当前实现状态的唯一依据。当前状态请以源码、README 和 `docs/releases/release-0.1.0.md` 为准。
-
-
 本阶段只处理两个体验问题：
 
 - QuickShulker 容器之间切换打开时，鼠标指针回到屏幕中心
