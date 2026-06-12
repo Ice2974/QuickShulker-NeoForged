@@ -27,8 +27,6 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
     private static final int BOTTOM_MARGIN = 28;
     private static final Component TITLE = Component.translatable("screen.quickshulker_neoforged.config.title");
     private static final Component CAPTURE_HINT = Component.translatable("screen.quickshulker_neoforged.config.capture_hint");
-    private static final Component UNIMPLEMENTED_HINT = Component.translatable("screen.quickshulker_neoforged.config.unimplemented");
-
     private final Screen parent;
     private String activationKey;
     private String openSettingsKey;
@@ -72,7 +70,7 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
         switch (currentPage) {
             case ACTIVATION -> initActivationPage(left, right);
             case QUICK_OPEN -> initQuickOpenPage(left, right);
-            case BUNDLING -> initBundlingPage(left, right);
+            case SHULKER_BUNDLING -> initBundlingPage(left, right);
         }
 
         addFooter(left, right);
@@ -122,9 +120,6 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
         );
         if (capturingTarget != KeyTarget.NONE) {
             guiGraphics.drawCenteredString(this.font, CAPTURE_HINT, this.width / 2, 28, 0xFFFF55);
-        }
-        if (currentPage == ConfigPage.BUNDLING) {
-            guiGraphics.drawCenteredString(this.font, UNIMPLEMENTED_HINT, this.width / 2, this.height - 52, 0xA0A0A0);
         }
     }
 
@@ -187,15 +182,6 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
         top += ROW_HEIGHT;
         addToggle(left, top, "config.quickshulker_neoforged.supports_bundling_transfer", supportsBundlingTransfer, value -> supportsBundlingTransfer = value);
         addToggle(right, top, "config.quickshulker_neoforged.supports_bundling_extract", supportsBundlingExtract, value -> supportsBundlingExtract = value);
-        top += ROW_HEIGHT;
-        CycleButton<Boolean> mouseDraggedButton = addToggle(
-            left,
-            top,
-            "config.quickshulker_neoforged.supports_mouse_dragged",
-            supportsMouseDragged,
-            value -> supportsMouseDragged = value
-        );
-        mouseDraggedButton.active = false;
     }
 
     private void addFooter(int left, int right) {
@@ -324,7 +310,7 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
     private enum ConfigPage {
         ACTIVATION("screen.quickshulker_neoforged.config.tab.activation", "screen.quickshulker_neoforged.config.section.activation"),
         QUICK_OPEN("screen.quickshulker_neoforged.config.tab.quick_open", "screen.quickshulker_neoforged.config.section.quick_open"),
-        BUNDLING("screen.quickshulker_neoforged.config.tab.bundling", "screen.quickshulker_neoforged.config.section.bundling");
+        SHULKER_BUNDLING("screen.quickshulker_neoforged.config.tab.bundling", "screen.quickshulker_neoforged.config.section.bundling");
 
         private final String tabKey;
         private final String titleKey;

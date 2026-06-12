@@ -66,7 +66,7 @@ public final class NeoForgeQuickShulkerConfig {
             .comment("Reserved for a future shulker interaction where right clicking an empty slot with a shulker box extracts an item.")
             .define("supportsBundlingExtract", DEFAULTS.supportsBundlingExtract());
         SUPPORTS_MOUSE_DRAGGED = builder
-            .comment("Reserved for a future shulker interaction where right clicking and dragging with a shulker box performs bulk interactions.")
+            .comment("Compatibility-only field. QuickShulker 1.0.0 does not implement mouse dragged shulker interactions, and this field must not be surfaced in the config GUI or wired into gameplay logic.")
             .define("supportsMouseDragged", DEFAULTS.supportsMouseDragged());
         builder.pop();
 

@@ -1,59 +1,48 @@
 # stage-1-config-gui
 
-## 本阶段实现内容
+> 历史说明：本文档记录阶段 1 的配置 GUI 入口与修补内容。当前实现状态以源码、当前发布文档和后续阶段报告为准。
 
-本阶段聚焦配置界面入口与配置编辑能力，保持阶段 1 只处理配置 GUI，不进入阶段 2。
+## 阶段 1 范围
 
-- Forge 1.20.1 与 NeoForge 1.21.1 均保留配置界面入口。
-- 配置界面继续兼容显示 `supportsMouseDragged`，但本阶段不接入实际鼠标拖拽行为，也不可在本阶段视为已实现。
-- Mods 页面配置按钮仍作为配置界面入口之一。
+阶段 1 只处理配置 GUI 入口和配置编辑能力，不进入 Bundle、mouse dragged、`rightClickClose`、`reopen inventory` 或末影箱 bundling 等后续阶段。
 
-## 本次补丁修复内容
+已完成：
 
-本次补丁仅修复“配置界面快捷键被 quick-open 配置条件错误拦截”的问题。
+- Forge 1.20.1 与 NeoForge 1.21.1 的配置界面入口
+- Mods 页面配置按钮入口
+- 配置界面快捷键被 quick-open 配置误拦截的问题修复
 
-### Forge 1.20.1
+## 本阶段未实现内容
 
-- 调整 `ForgeQuickShulkerClient#onClientTick` 中 `OPEN_SETTINGS_SCREEN` 的处理顺序。
-- 现在配置快捷键只受以下条件限制：
-  - `minecraft.player != null`
-  - `minecraft.screen == null`
-  - `ForgeQuickShulkerConfig.view().openSettingsKeyEnabled()`
-  - `ForgeKeyMappings.OPEN_SETTINGS_SCREEN.consumeClick()`
-- 不再依赖 `hasAnyEnabledQuickOpenable()`、`keybindInHand()`、`keybindInInventory()`、`rightClickToOpen()`。
-
-### NeoForge 1.21.1
-
-- 按与 Forge 相同的方式调整 `NeoForgeQuickShulkerClient#onClientTick`。
-- 现在配置快捷键只受以下条件限制：
-  - `minecraft.player != null`
-  - `minecraft.screen == null`
-  - `NeoForgeQuickShulkerConfig.view().openSettingsKeyEnabled()`
-  - `NeoForgeKeyMappings.OPEN_SETTINGS_SCREEN.consumeClick()`
-- 不再依赖 `hasAnyEnabledQuickOpenable()`、`keybindInHand()`、`keybindInInventory()`、`rightClickToOpen()`。
-
-## 明确未实现内容
-
-以下内容本阶段未实现，也未在本次补丁中恢复或接入：
+以下内容在阶段 1 没有实现，也没有在该阶段作为可用功能对玩家承诺：
 
 - Bundle 独立菜单
+- Bundle quick-open
+- Bundle bundling
 - `supportsMouseDragged` 对应的实际 mouse dragged 行为
 - 末影箱 bundling
 - `rightClickClose`
 - `reopen inventory`
 
-## 未改动边界
+## 后续状态说明
 
-本次补丁未改动以下范围：
+后续阶段已经明确：
+
+- 1.0.0 主动跳过 Bundle 相关功能，不会提供 Bundle 独立菜单、Bundle quick-open 或 Bundle bundling
+- `rightClickClose` 仍不恢复
+- `reopen inventory` 仍不恢复
+- `supportsMouseDragged` 如保留配置字段，也只作为兼容字段，不代表当前已支持对应行为
+
+## 本阶段未改动边界
 
 - shulker / ender chest 容器保存逻辑
 - HostSlotRef / slot 映射逻辑
 - 网络协议和数据包结构
-- Bundle 独立菜单、mouse dragged 交互与其他阶段 2 内容
+- quick-open 切换与宿主锁定逻辑
 
-## 验证结果
+## 历史验证记录
 
-已执行：
+阶段 1 记录中曾执行：
 
 ```powershell
 git diff --check
@@ -61,18 +50,4 @@ git diff --check
 .\gradlew.bat :neoforge-1.21.1:build
 ```
 
-结果以本次补丁提交时的实际命令输出为准，应确认：
-
-- `git diff --check` 无格式错误
-- Forge 1.20.1 构建通过
-- NeoForge 1.21.1 构建通过
-
-## 待人工测试项
-
-- 正常情况下按配置快捷键能打开配置界面。
-- 关闭 `keybindInHand` 后，配置快捷键仍能打开配置界面。
-- 关闭所有 quick-open 目标后，配置快捷键仍能打开配置界面。
-- 关闭 `openSettingsKeyEnabled` 后，配置快捷键不再打开配置界面。
-- Mods 页面配置按钮仍可打开配置界面。
-- 修改配置、关闭界面、重启客户端后配置仍生效。
-- `supportsMouseDragged` 仍然只是兼容显示，不应表现为已接入真实拖拽功能。
+该验证结果仅代表阶段 1 当时的补丁提交状态，不代表当前工作区状态。

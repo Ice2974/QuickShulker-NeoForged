@@ -1,86 +1,52 @@
 # stage-0.2.0-p5-config-gui-entry
 
-> 说明：本文件合并了原 `p5` 配置入口阶段与 `p5a` 配置界面优化阶段，统一作为 `p5` 的阶段记录保留。
+> 历史说明：本文档记录早期配置 GUI 入口补齐与分页整理结果。当前实现状态以源码、当前发布文档和后续阶段报告为准。
 
-## 本阶段修改
+## 历史阶段已完成内容
 
-本阶段完成了 QuickShulker 配置界面的入口补齐，并在后续优化中把单页配置界面整理为更稳定的分页布局。
+该阶段当时完成了以下基础配置 GUI 能力：
 
-### 1. Mods 页面配置入口
+- Forge 1.20.1 与 NeoForge 1.21.1 的 Mods 页面配置入口
+- `openSettingsKey` 打开配置界面
+- 配置界面分页整理
+- 中英文配置界面文案补齐
 
-在 Forge 1.20.1 和 NeoForge 1.21.1 的 Mods 页面中补齐了配置按钮入口，点击后可以打开 QuickShulker 的配置界面。
+## 当前仍有效的结论
 
-界面中保留并可修改的配置项包括：
+- 配置 GUI 只负责配置读写与入口展示，不参与 quick-open 保存链路
+- `rightClickClose` 未恢复
+- `reopen inventory` 未恢复
+- 不会因为配置 GUI 改动而改变 HostSlotRef、slot 映射或容器保存逻辑
 
-- `activationKey`
-- `openSettingsKey`
-- `openSettingsKeyEnabled`
-- 各类 quick-open 开关
-- 各类 bundling 配置
+## 已过期的旧表述说明
 
-`supportsMouseDragged` 在界面中保留，但按当前实现边界仅作为提示项处理，不引入额外高风险行为。
+以下旧阶段表述不再代表当前状态：
 
-### 2. 快捷键打开配置界面
+- `supportsMouseDragged` 不再继续显示在配置 GUI 中
+- bundling 分页当前应明确理解为“潜影盒 bundling / shulker bundling”，不是 Bundle 物品支持入口
+- 1.0.0 已明确主动跳过 Bundle 独立菜单、Bundle quick-open 和 Bundle bundling
 
-继续使用现有的 `openSettingsKey` 作为打开配置界面的快捷键。
+## 当前配置 GUI 边界
 
-快捷键触发时，如果配置界面已经打开，不会重复打开或重复触发。
+当前配置 GUI 可见范围应限定为：
 
-配置界面会在返回时跟随原版“按键控制”里对相关 `KeyMapping` 的改动同步显示，避免按钮文本继续停留在旧值。
+- 基础输入 / 快捷键配置
+- 已接入的 quick-open 目标开关
+- 已接入的潜影盒 bundling 开关
 
-### 3. 配置保存
+当前配置 GUI 不应向玩家暴露：
 
-配置修改后会写回配置文件，关闭界面时也会完成保存收尾。
+- Bundle 菜单入口
+- Bundle quick-open 开关
+- Bundle bundling 开关
+- `supportsMouseDragged` 可编辑项
 
-本阶段没有引入新的物品写回路径，也没有把配置 GUI 和 quick-open 容器保存逻辑耦合在一起。
+## 历史验证记录
 
-### 4. 界面优化
-
-在初版配置入口完成后，继续把配置界面整理为更清晰的分页结构，避免底部按钮与上一排内容挤在一起的问题。
-
-当前页面划分为：
-
-- `功能`
-- `启用项`
-- `Bundling`
-
-同时把底部的 `Reset Defaults` 和 `完成` 按钮与上方内容拉开间距，避免按钮遮挡和布局重叠。
-
-`supportsMouseDragged` 的提示仅保留在与 Bundling 相关的页面中，避免在所有页面重复显示。
-
-### 5. 中文翻译
-
-补齐了 `zh_cn.json` 配置项翻译，避免配置界面继续显示英文原文或字段名。
-
-## 设计边界
-
-本阶段只处理配置入口、配置界面和本地化，不恢复也不新增以下内容：
-
-- `rightClickClose`
-- `reopen inventory`
-- 其他容器槽位逻辑改动
-- 玩家物品在模组初始化阶段被直接修改
-- 将配置界面改成会影响 quick-open session 的写回链路
-
-配置读取和写入保持安全边界，Forge 侧继续使用原生配置对象 / NBT 路径，NeoForge 侧继续走兼容保存路径，但本阶段不把这些细节扩散到业务逻辑层。
-
-## 验证
-
-已完成的构建验证：
+该阶段文档原记录过以下构建验证：
 
 ```powershell
 .\gradlew.bat :forge-1.20.1:build :neoforge-1.21.1:build
 ```
 
-结果：
-
-- Forge 1.20.1 构建通过
-- NeoForge 1.21.1 构建通过
-
-本次仅合并阶段文档，没有额外执行新的游戏内验证。
-
-## 风险与待确认项
-
-- `supportsMouseDragged` 目前仍是保留项，后续如果要真正启用，需要再次确认交互边界。
-- 配置分页和中文翻译已补齐，但仍需要在真实客户端里确认小窗口下的排版不会再次贴边。
-- 本次文档合并不影响源码行为，但如果后续还有新的配置项，再补文档时应继续保持 `p5` 作为当前阶段记录。
+该记录只代表当时补丁状态，不代表当前工作区状态。
