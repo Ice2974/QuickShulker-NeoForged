@@ -25,7 +25,10 @@ public final class NeoForgeQuickShulkerNetwork {
             NeoForgeOpenHostItemPayload.STREAM_CODEC,
             (payload, context) -> {
                 if (context.player() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-                    NeoForgeQuickOpenHandler.handle(serverPlayer, payload.intent(), NeoForgeServices.SHULKER_SESSIONS);
+                    // Menu/session mutations must run on the server thread.
+                    context.enqueueWork(() ->
+                        NeoForgeQuickOpenHandler.handle(serverPlayer, payload.intent(), NeoForgeServices.SHULKER_SESSIONS)
+                    );
                 }
             }
         );
@@ -34,7 +37,10 @@ public final class NeoForgeQuickShulkerNetwork {
             NeoForgeShulkerBundlingPayload.STREAM_CODEC,
             (payload, context) -> {
                 if (context.player() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-                    NeoForgeShulkerBundlingHandler.handle(serverPlayer, payload.intent(), payload.cursorStack());
+                    // Bundling mutates carried stacks and slots, so keep packet order on the server thread.
+                    context.enqueueWork(() ->
+                        NeoForgeShulkerBundlingHandler.handle(serverPlayer, payload.intent(), payload.cursorStack())
+                    );
                 }
             }
         );

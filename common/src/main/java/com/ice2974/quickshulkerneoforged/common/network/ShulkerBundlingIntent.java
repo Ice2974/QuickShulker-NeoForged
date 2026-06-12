@@ -5,9 +5,15 @@ import java.util.Objects;
 
 public record ShulkerBundlingIntent(
     ShulkerBundlingAction action,
-    HostSlotRef hostSlot
+    HostSlotRef hostSlot,
+    int containerId,
+    long dragId
 ) implements NetworkIntent {
     public static final String CHANNEL_ID = "shulker_bundling";
+
+    public ShulkerBundlingIntent(ShulkerBundlingAction action, HostSlotRef hostSlot) {
+        this(action, hostSlot, -1, 0L);
+    }
 
     public ShulkerBundlingIntent {
         Objects.requireNonNull(action, "action");

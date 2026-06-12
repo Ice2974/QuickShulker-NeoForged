@@ -40,6 +40,7 @@ public final class ForgeQuickShulkerNetwork {
         CHANNEL.messageBuilder(ForgeShulkerBundlingPacket.class, 1, NetworkDirection.PLAY_TO_SERVER)
             .encoder(ForgeShulkerBundlingPacket::encode)
             .decoder(ForgeShulkerBundlingPacket::decode)
+            // Bundling mutates carried stacks and slots; consumerMainThread keeps it on the server thread.
             .consumerMainThread(ForgeQuickShulkerNetwork::handleShulkerBundling)
             .add();
         CHANNEL.messageBuilder(ForgeEnderChestFullSyncPacket.class, 2, NetworkDirection.PLAY_TO_CLIENT)

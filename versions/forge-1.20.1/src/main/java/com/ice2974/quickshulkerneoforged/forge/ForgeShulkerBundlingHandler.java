@@ -4,7 +4,14 @@ import com.ice2974.quickshulkerneoforged.common.bundling.ShulkerBundlingResult;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingAction;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingIntent;
 import com.ice2974.quickshulkerneoforged.common.open.HostIdentity;
+import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
@@ -14,6 +21,8 @@ import org.slf4j.LoggerFactory;
 public final class ForgeShulkerBundlingHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(ForgeShulkerBundlingHandler.class);
     private static final ForgeShulkerBundlingHelper HELPER = new ForgeShulkerBundlingHelper();
+    private static final int DRAG_SESSION_TIMEOUT_TICKS = 200;
+    private static final Map<UUID, DragSession> DRAG_SESSIONS = new HashMap<>();
 
     private ForgeShulkerBundlingHandler() {
     }
@@ -22,16 +31,49 @@ public final class ForgeShulkerBundlingHandler {
         if (player == null) {
             return;
         }
+        pruneDragSessions(player);
+        if (!matchesCurrentContainer(player, intent)) {
+            LOGGER.debug(
+                "Rejected Forge bundling intent for stale container: action={}, packetContainerId={}, currentContainerId={}, hostSlot={}",
+                intent.action(),
+                intent.containerId(),
+                player.containerMenu.containerId,
+                intent.hostSlot()
+            );
+            return;
+        }
+
+        DragSession dragSession = null;
+        if (isDragSessionIntent(intent)) {
+            dragSession = resolveDragSession(player, intent, cursorStack);
+            if (dragSession == null || !dragSession.markProcessed(intent.action(), intent.hostSlot())) {
+                return;
+            }
+        } else {
+            DRAG_SESSIONS.remove(player.getUUID());
+        }
 
         switch (intent.action()) {
             case INSERT -> handleInsert(player, intent, cursorStack);
-            case PICKUP_INSERT -> handlePickupInsert(player, intent, cursorStack);
+            case PICKUP_INSERT -> handlePickupInsert(player, intent, cursorStack, dragSession);
             case MOUSE_DRAG_INSERT -> handleMouseDragInsert(player, intent);
-            case MOUSE_DRAG_PICKUP_INSERT -> handleMouseDragPickupInsert(player, intent, cursorStack);
-            case EXTRACT -> handleExtract(player, intent, cursorStack);
-            case MOUSE_DRAG_EXTRACT -> handleMouseDragExtract(player, intent, cursorStack);
+            case MOUSE_DRAG_PICKUP_INSERT -> handleMouseDragPickupInsert(player, intent, cursorStack, dragSession);
+            case EXTRACT -> handleExtract(player, intent, cursorStack, dragSession);
+            case MOUSE_DRAG_EXTRACT -> handleMouseDragExtract(player, intent, cursorStack, dragSession);
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
             case UNKNOWN -> LOGGER.debug("Rejected Forge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
+        }
+    }
+
+    public static void tickDragSession(ServerPlayer player) {
+        if (player != null) {
+            pruneDragSessions(player);
+        }
+    }
+
+    public static void clearDragSession(ServerPlayer player) {
+        if (player != null) {
+            DRAG_SESSIONS.remove(player.getUUID());
         }
     }
 
@@ -71,10 +113,10 @@ public final class ForgeShulkerBundlingHandler {
         player.containerMenu.setCarried(result.updatedInputStack().orElseThrow().copy());
         logCreativeSetCarried(player, intent, "insert");
         syncPlayerInventory(player);
-        clearCreativeServerCarriedAfterSync(player, intent, "insert");
+        finishCreativeServerCarriedAfterSync(player, intent, "insert");
     }
 
-    private static void handlePickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+    private static void handlePickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack, DragSession dragSession) {
         if (!ForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
             return;
         }
@@ -86,7 +128,7 @@ public final class ForgeShulkerBundlingHandler {
             return;
         }
 
-        ItemStack carried = resolvedCarried(player, cursorStack);
+        ItemStack carried = resolvedCarried(player, cursorStack, dragSession);
         logCreativeResolvedCarried(player, intent, cursorStack, carried, "pickup_insert");
         if (!isSingleShulkerBox(carried)) {
             LOGGER.debug("Rejected Forge pickup insert due to non-single-shulker carried stack: creative={}, count={}, empty={}",
@@ -94,10 +136,12 @@ public final class ForgeShulkerBundlingHandler {
             return;
         }
 
-        ItemStack hostStack = ForgeHostSlotResolver.resolve(player, intent.hostSlot());
+        ItemStack hostStack = ForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();
         if (hostStack.isEmpty() || isShulkerBox(hostStack) || !hostStack.getItem().canFitInsideContainerItems()) {
             return;
         }
+        int targetBefore = hostStack.getCount();
+        int shulkerBefore = countShulkerItems(carried);
 
         ShulkerBundlingResult<ItemStack, ItemStack> result = HELPER.insertIntoShulker(carried, hostStack);
         if (!result.changed()) {
@@ -105,16 +149,29 @@ public final class ForgeShulkerBundlingHandler {
             return;
         }
         ItemStack updatedHostStack = result.updatedInputStack().orElseThrow().copy();
+        ItemStack updatedCarried = result.updatedContainerStack().orElseThrow().copy();
+        if (!isConservedPickupInsert(targetBefore, shulkerBefore, updatedHostStack, updatedCarried)) {
+            LOGGER.warn("Rejected Forge pickup insert due to conservation check failure: action={}, hostSlot={}", intent.action(), intent.hostSlot());
+            return;
+        }
+        if (!ItemStack.matches(hostStack, ForgeHostSlotResolver.resolve(player, intent.hostSlot()))) {
+            LOGGER.debug("Rejected Forge pickup insert because target slot changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+        if (!carriedStillMatches(player, carried, dragSession)) {
+            LOGGER.debug("Rejected Forge pickup insert because carried stack changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
         if (!ForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), updatedHostStack)) {
             LOGGER.debug("Rejected Forge pickup insert due to unsafe host slot writeback: hostSlot={}", intent.hostSlot());
             return;
         }
 
-        player.containerMenu.setCarried(result.updatedContainerStack().orElseThrow().copy());
+        setCarried(player, updatedCarried, dragSession);
         logCreativeSetCarried(player, intent, "pickup_insert");
         ForgeHostSlotResolver.set(player, intent.hostSlot(), updatedHostStack);
         syncPlayerInventory(player);
-        clearCreativeServerCarriedAfterSync(player, intent, "pickup_insert");
+        finishCreativeServerCarriedAfterSync(player, intent, "pickup_insert");
     }
 
     private static void handleMouseDragInsert(ServerPlayer player, ShulkerBundlingIntent intent) {
@@ -125,30 +182,41 @@ public final class ForgeShulkerBundlingHandler {
         LOGGER.debug("Rejected Forge mouse dragged insert because ordinary-item drag insertion is disabled: hostSlot={}", intent.hostSlot());
     }
 
-    private static void handleMouseDragPickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+    private static void handleMouseDragPickupInsert(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        DragSession dragSession
+    ) {
         if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()
             || !ForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
             return;
         }
-        handlePickupInsert(player, new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, intent.hostSlot()), cursorStack);
+        handlePickupInsert(player, new ShulkerBundlingIntent(
+            ShulkerBundlingAction.PICKUP_INSERT,
+            intent.hostSlot(),
+            intent.containerId(),
+            intent.dragId()
+        ), cursorStack, dragSession);
     }
 
-    private static void handleExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
-        handleExtractCore(player, intent, cursorStack, false);
+    private static void handleExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack, DragSession dragSession) {
+        handleExtractCore(player, intent, cursorStack, false, dragSession);
     }
 
-    private static void handleMouseDragExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+    private static void handleMouseDragExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack, DragSession dragSession) {
         if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()) {
             return;
         }
-        handleExtractCore(player, intent, cursorStack, true);
+        handleExtractCore(player, intent, cursorStack, true, dragSession);
     }
 
     private static void handleExtractCore(
         ServerPlayer player,
         ShulkerBundlingIntent intent,
         ItemStack cursorStack,
-        boolean mouseDragged
+        boolean mouseDragged,
+        DragSession dragSession
     ) {
         if (!ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             return;
@@ -159,19 +227,20 @@ public final class ForgeShulkerBundlingHandler {
         if (isCurrentQuickOpenHost(player, intent)) {
             return;
         }
-        ItemStack targetStack = ForgeHostSlotResolver.resolve(player, intent.hostSlot());
+        ItemStack targetStack = ForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();
         if (!targetStack.isEmpty()) {
             LOGGER.debug("Rejected Forge extract because target slot was not empty: hostSlot={}", intent.hostSlot());
             return;
         }
 
-        ItemStack carried = resolvedCarried(player, cursorStack);
+        ItemStack carried = resolvedCarried(player, cursorStack, dragSession);
         logCreativeResolvedCarried(player, intent, cursorStack, carried, "extract");
         if (!isSingleShulkerBox(carried)) {
             LOGGER.debug("Rejected Forge extract due to non-single-shulker carried stack: creative={}, count={}, empty={}",
                 player.getAbilities().instabuild, carried.getCount(), carried.isEmpty());
             return;
         }
+        int shulkerBefore = countShulkerItems(carried);
 
         ShulkerBundlingResult<ItemStack, ItemStack> result = HELPER.extractFirstStack(carried);
         if (!result.changed() || result.updatedContainerStack().isEmpty() || result.extractedStack().isEmpty()) {
@@ -180,6 +249,11 @@ public final class ForgeShulkerBundlingHandler {
         }
 
         ItemStack extractedStack = result.extractedStack().orElseThrow().copy();
+        ItemStack updatedCarried = result.updatedContainerStack().orElseThrow().copy();
+        if (!isConservedExtract(shulkerBefore, updatedCarried, extractedStack)) {
+            LOGGER.warn("Rejected Forge extract due to conservation check failure: action={}, hostSlot={}", intent.action(), intent.hostSlot());
+            return;
+        }
         if (!ForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), extractedStack)) {
             LOGGER.debug("Rejected Forge extract because target slot is unsafe for extracted stack writeback: hostSlot={}", intent.hostSlot());
             return;
@@ -188,12 +262,16 @@ public final class ForgeShulkerBundlingHandler {
             LOGGER.debug("Rejected Forge extract because target slot changed before writeback: hostSlot={}", intent.hostSlot());
             return;
         }
+        if (!carriedStillMatches(player, carried, dragSession)) {
+            LOGGER.debug("Rejected Forge extract because carried stack changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
 
-        player.containerMenu.setCarried(result.updatedContainerStack().orElseThrow().copy());
+        setCarried(player, updatedCarried, dragSession);
         logCreativeSetCarried(player, intent, "extract");
         ForgeHostSlotResolver.set(player, intent.hostSlot(), extractedStack);
         syncPlayerInventory(player);
-        clearCreativeServerCarriedAfterSync(player, intent, "extract");
+        finishCreativeServerCarriedAfterSync(player, intent, "extract");
     }
 
     private static void handleTransfer(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
@@ -243,7 +321,7 @@ public final class ForgeShulkerBundlingHandler {
         player.containerMenu.setCarried(result.updatedSourceContainerStack().orElseThrow().copy());
         logCreativeSetCarried(player, intent, "transfer");
         syncPlayerInventory(player);
-        clearCreativeServerCarriedAfterSync(player, intent, "transfer");
+        finishCreativeServerCarriedAfterSync(player, intent, "transfer");
     }
 
     private static void syncPlayerInventory(ServerPlayer player) {
@@ -258,10 +336,110 @@ public final class ForgeShulkerBundlingHandler {
     }
 
     private static ItemStack resolvedCarried(ServerPlayer player, ItemStack cursorStack) {
+        return resolvedCarried(player, cursorStack, null);
+    }
+
+    private static ItemStack resolvedCarried(ServerPlayer player, ItemStack cursorStack, DragSession dragSession) {
+        if (dragSession != null) {
+            return dragSession.carried.copy();
+        }
         if (player.getAbilities().instabuild) {
             return cursorStack == null ? ItemStack.EMPTY : cursorStack.copy();
         }
         return player.containerMenu.getCarried().copy();
+    }
+
+    private static void setCarried(ServerPlayer player, ItemStack stack, DragSession dragSession) {
+        ItemStack copy = stack.copy();
+        if (dragSession != null) {
+            dragSession.carried = copy.copy();
+        }
+        player.containerMenu.setCarried(copy);
+    }
+
+    private static boolean matchesCurrentContainer(ServerPlayer player, ShulkerBundlingIntent intent) {
+        AbstractContainerMenu menu = player.containerMenu;
+        return menu != null && intent.containerId() == menu.containerId;
+    }
+
+    private static boolean isDragSessionIntent(ShulkerBundlingIntent intent) {
+        return intent.dragId() != 0L
+            && (intent.action() == ShulkerBundlingAction.PICKUP_INSERT
+                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_PICKUP_INSERT
+                || intent.action() == ShulkerBundlingAction.EXTRACT
+                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_EXTRACT);
+    }
+
+    private static DragSession resolveDragSession(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        ItemStack currentCarried = player.getAbilities().instabuild
+            ? (cursorStack == null ? ItemStack.EMPTY : cursorStack.copy())
+            : player.containerMenu.getCarried().copy();
+        if (!isSingleShulkerBox(currentCarried)) {
+            LOGGER.debug("Rejected Forge mouse drag session due to non-single-shulker carried stack: action={}, hostSlot={}",
+                intent.action(), intent.hostSlot());
+            return null;
+        }
+
+        long now = currentGameTime(player);
+        DragSession session = DRAG_SESSIONS.get(player.getUUID());
+        if (session == null || !session.matches(intent.containerId(), intent.dragId())) {
+            session = new DragSession(intent.containerId(), intent.dragId(), currentCarried, now);
+            DRAG_SESSIONS.put(player.getUUID(), session);
+            return session;
+        }
+        session.refresh(now);
+        return session;
+    }
+
+    private static void pruneDragSessions(ServerPlayer player) {
+        DragSession session = DRAG_SESSIONS.get(player.getUUID());
+        if (session == null) {
+            return;
+        }
+        AbstractContainerMenu menu = player.containerMenu;
+        long now = currentGameTime(player);
+        if (menu == null
+            || session.containerId != menu.containerId
+            || now - session.lastSeenGameTime > DRAG_SESSION_TIMEOUT_TICKS) {
+            DRAG_SESSIONS.remove(player.getUUID());
+        }
+    }
+
+    private static long currentGameTime(ServerPlayer player) {
+        return player.serverLevel().getGameTime();
+    }
+
+    private static boolean carriedStillMatches(ServerPlayer player, ItemStack expected, DragSession dragSession) {
+        if (dragSession != null) {
+            return ItemStack.matches(expected, dragSession.carried);
+        }
+        if (player.getAbilities().instabuild) {
+            return true;
+        }
+        return ItemStack.matches(expected, player.containerMenu.getCarried());
+    }
+
+    private static boolean isConservedPickupInsert(
+        int targetBefore,
+        int shulkerBefore,
+        ItemStack updatedTarget,
+        ItemStack updatedCarried
+    ) {
+        int moved = targetBefore - updatedTarget.getCount();
+        return moved >= 0 && countShulkerItems(updatedCarried) - shulkerBefore == moved;
+    }
+
+    private static boolean isConservedExtract(int shulkerBefore, ItemStack updatedCarried, ItemStack extractedStack) {
+        int moved = extractedStack.getCount();
+        return moved >= 0 && shulkerBefore - countShulkerItems(updatedCarried) == moved;
+    }
+
+    private static int countShulkerItems(ItemStack shulkerStack) {
+        int total = 0;
+        for (ItemStack stack : HELPER.readItemStacksCopy(shulkerStack)) {
+            total += stack.getCount();
+        }
+        return total;
     }
 
     private static boolean isSingleShulkerBox(ItemStack stack) {
@@ -311,30 +489,17 @@ public final class ForgeShulkerBundlingHandler {
         );
     }
 
-    private static void clearCreativeServerCarriedAfterSync(ServerPlayer player, ShulkerBundlingIntent intent, String phase) {
+    private static void finishCreativeServerCarriedAfterSync(ServerPlayer player, ShulkerBundlingIntent intent, String phase) {
         if (!player.getAbilities().instabuild) {
             return;
         }
-        if (player.containerMenu != player.inventoryMenu) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug(
-                    "Forge creative bundling {} kept server carried for non-inventory menu: action={}, hostSlot={}, menuClass={}, menuCarried={}",
-                    phase,
-                    intent.action(),
-                    intent.hostSlot(),
-                    player.containerMenu.getClass().getName(),
-                    describeStack(player.containerMenu.getCarried())
-                );
-            }
-            return;
-        }
-        player.containerMenu.setCarried(ItemStack.EMPTY);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(
-                "Forge creative bundling {} cleared server carried after sync: action={}, hostSlot={}, menuCarried={}",
+                "Forge creative bundling {} kept server carried after sync: action={}, hostSlot={}, menuClass={}, menuCarried={}",
                 phase,
                 intent.action(),
                 intent.hostSlot(),
+                player.containerMenu.getClass().getName(),
                 describeStack(player.containerMenu.getCarried())
             );
         }
@@ -345,5 +510,35 @@ public final class ForgeShulkerBundlingHandler {
             return "<empty>";
         }
         return stack.getItem().toString() + " x" + stack.getCount();
+    }
+
+    private static final class DragSession {
+        private final int containerId;
+        private final long dragId;
+        private final Set<ProcessedDragSlot> processedSlots = new HashSet<>();
+        private ItemStack carried;
+        private long lastSeenGameTime;
+
+        private DragSession(int containerId, long dragId, ItemStack carried, long lastSeenGameTime) {
+            this.containerId = containerId;
+            this.dragId = dragId;
+            this.carried = carried.copy();
+            this.lastSeenGameTime = lastSeenGameTime;
+        }
+
+        private boolean matches(int containerId, long dragId) {
+            return this.containerId == containerId && this.dragId == dragId;
+        }
+
+        private void refresh(long now) {
+            this.lastSeenGameTime = now;
+        }
+
+        private boolean markProcessed(ShulkerBundlingAction action, HostSlotRef hostSlot) {
+            return processedSlots.add(new ProcessedDragSlot(action, hostSlot));
+        }
+    }
+
+    private record ProcessedDragSlot(ShulkerBundlingAction action, HostSlotRef hostSlot) {
     }
 }

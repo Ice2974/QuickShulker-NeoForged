@@ -16,12 +16,14 @@ public final class ForgeQuickShulkerEvents {
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer serverPlayer) {
             ForgeServices.SHULKER_SESSIONS.tick(serverPlayer);
+            ForgeShulkerBundlingHandler.tickDragSession(serverPlayer);
         }
     }
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            ForgeShulkerBundlingHandler.clearDragSession(serverPlayer);
             ForgeServices.SHULKER_SESSIONS.finishSessionOnDisconnect(serverPlayer);
         }
     }
@@ -29,6 +31,7 @@ public final class ForgeQuickShulkerEvents {
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            ForgeShulkerBundlingHandler.clearDragSession(serverPlayer);
             ForgeServices.SHULKER_SESSIONS.finishSessionOnDeath(serverPlayer);
         }
     }
@@ -36,6 +39,7 @@ public final class ForgeQuickShulkerEvents {
     @SubscribeEvent
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            ForgeShulkerBundlingHandler.clearDragSession(serverPlayer);
             ForgeServices.SHULKER_SESSIONS.finishSessionOnDimensionChange(serverPlayer);
         }
     }

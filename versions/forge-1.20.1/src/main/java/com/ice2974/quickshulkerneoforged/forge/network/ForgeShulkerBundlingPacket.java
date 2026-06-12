@@ -13,7 +13,9 @@ public record ForgeShulkerBundlingPacket(ShulkerBundlingIntent intent, ItemStack
     public static ForgeShulkerBundlingPacket decode(FriendlyByteBuf buf) {
         return new ForgeShulkerBundlingPacket(new ShulkerBundlingIntent(
             ShulkerBundlingAction.fromSerializedName(buf.readUtf(MAX_TEXT_FIELD_LENGTH)),
-            new HostSlotRef(HostStorageScope.fromSerializedName(buf.readUtf(MAX_TEXT_FIELD_LENGTH)), buf.readVarInt(), buf.readVarInt())
+            new HostSlotRef(HostStorageScope.fromSerializedName(buf.readUtf(MAX_TEXT_FIELD_LENGTH)), buf.readVarInt(), buf.readVarInt()),
+            buf.readVarInt(),
+            buf.readLong()
         ), buf.readItem());
     }
 
@@ -22,6 +24,8 @@ public record ForgeShulkerBundlingPacket(ShulkerBundlingIntent intent, ItemStack
         buf.writeUtf(intent.hostSlot().scope().name());
         buf.writeVarInt(intent.hostSlot().logicalSlotIndex());
         buf.writeVarInt(intent.hostSlot().menuSlotIndex());
+        buf.writeVarInt(intent.containerId());
+        buf.writeLong(intent.dragId());
         buf.writeItem(cursorStack);
     }
 }

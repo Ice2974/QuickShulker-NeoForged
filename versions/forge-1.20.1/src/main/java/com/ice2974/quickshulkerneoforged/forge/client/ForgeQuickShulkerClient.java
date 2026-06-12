@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Mod.EventBusSubscriber(modid = QuickShulkerConstants.MOD_ID, value = Dist.CLIENT)
 public final class ForgeQuickShulkerClient {
@@ -46,6 +47,8 @@ public final class ForgeQuickShulkerClient {
     private static boolean suppressNextInventoryRightRelease;
     private static DragMode dragMode = DragMode.NONE;
     private static final Set<HostSlotRef> DRAGGED_HOST_SLOTS = new HashSet<>();
+    private static long currentDragId;
+    private static int dragContainerId = -1;
 
     private ForgeQuickShulkerClient() {
     }
@@ -61,7 +64,13 @@ public final class ForgeQuickShulkerClient {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
         if (player == null) {
+            clearMouseDrag();
             return;
+        }
+        if (dragMode != DragMode.NONE
+            && (!(minecraft.screen instanceof AbstractContainerScreen<?> containerScreen)
+            || containerScreen.getMenu().containerId != dragContainerId)) {
+            clearMouseDrag();
         }
 
         if (minecraft.screen == null
@@ -126,8 +135,10 @@ public final class ForgeQuickShulkerClient {
 
         Optional<ShulkerBundlingIntent> bundlingIntent = determineBundlingIntent(player, event.getScreen());
         if (bundlingIntent.isPresent()) {
-            sendBundlingIntent((AbstractContainerScreen<?>) event.getScreen(), bundlingIntent.get());
-            beginMouseDrag(player, bundlingIntent.get());
+            AbstractContainerScreen<?> containerScreen = (AbstractContainerScreen<?>) event.getScreen();
+            ShulkerBundlingIntent preparedIntent = prepareBundlingIntent(containerScreen, bundlingIntent.get());
+            sendBundlingIntent(containerScreen, preparedIntent);
+            beginMouseDrag(player, preparedIntent);
             suppressNextInventoryRightRelease = true;
             event.setCanceled(true);
             return;
@@ -316,8 +327,11 @@ public final class ForgeQuickShulkerClient {
     }
 
     private static void beginMouseDrag(Player player, ShulkerBundlingIntent intent) {
-        clearMouseDrag();
+        dragMode = DragMode.NONE;
+        DRAGGED_HOST_SLOTS.clear();
         if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+            currentDragId = 0L;
+            dragContainerId = -1;
             return;
         }
         if (intent.action() == ShulkerBundlingAction.PICKUP_INSERT) {
@@ -326,6 +340,8 @@ public final class ForgeQuickShulkerClient {
             && ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             dragMode = DragMode.EXTRACT_FROM_CARRIED_SHULKER;
         } else {
+            currentDragId = 0L;
+            dragContainerId = -1;
             return;
         }
         DRAGGED_HOST_SLOTS.add(intent.hostSlot());
@@ -381,13 +397,39 @@ public final class ForgeQuickShulkerClient {
         }
 
         DRAGGED_HOST_SLOTS.add(hostSlot.get());
-        sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(action, hostSlot.get()));
+        sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(
+            action,
+            hostSlot.get(),
+            containerScreen.getMenu().containerId,
+            currentDragId
+        ));
         return true;
     }
 
     private static void clearMouseDrag() {
         dragMode = DragMode.NONE;
         DRAGGED_HOST_SLOTS.clear();
+        currentDragId = 0L;
+        dragContainerId = -1;
+    }
+
+    private static ShulkerBundlingIntent prepareBundlingIntent(
+        AbstractContainerScreen<?> containerScreen,
+        ShulkerBundlingIntent intent
+    ) {
+        int containerId = containerScreen.getMenu().containerId;
+        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()
+            || (intent.action() != ShulkerBundlingAction.PICKUP_INSERT
+            && intent.action() != ShulkerBundlingAction.EXTRACT)) {
+            return new ShulkerBundlingIntent(intent.action(), intent.hostSlot(), containerId, 0L);
+        }
+
+        currentDragId = ThreadLocalRandom.current().nextLong();
+        if (currentDragId == 0L) {
+            currentDragId = 1L;
+        }
+        dragContainerId = containerId;
+        return new ShulkerBundlingIntent(intent.action(), intent.hostSlot(), containerId, currentDragId);
     }
 
     private static void sendBundlingIntent(AbstractContainerScreen<?> containerScreen, ShulkerBundlingIntent intent) {

@@ -16,12 +16,14 @@ public final class NeoForgeQuickShulkerEvents {
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (!event.getEntity().level().isClientSide() && event.getEntity() instanceof ServerPlayer serverPlayer) {
             NeoForgeServices.SHULKER_SESSIONS.tick(serverPlayer);
+            NeoForgeShulkerBundlingHandler.tickDragSession(serverPlayer);
         }
     }
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            NeoForgeShulkerBundlingHandler.clearDragSession(serverPlayer);
             NeoForgeServices.SHULKER_SESSIONS.finishSessionOnDisconnect(serverPlayer);
         }
     }
@@ -29,6 +31,7 @@ public final class NeoForgeQuickShulkerEvents {
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            NeoForgeShulkerBundlingHandler.clearDragSession(serverPlayer);
             NeoForgeServices.SHULKER_SESSIONS.finishSessionOnDeath(serverPlayer);
         }
     }
@@ -36,6 +39,7 @@ public final class NeoForgeQuickShulkerEvents {
     @SubscribeEvent
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            NeoForgeShulkerBundlingHandler.clearDragSession(serverPlayer);
             NeoForgeServices.SHULKER_SESSIONS.finishSessionOnDimensionChange(serverPlayer);
         }
     }
