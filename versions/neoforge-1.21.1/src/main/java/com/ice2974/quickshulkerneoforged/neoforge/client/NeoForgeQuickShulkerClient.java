@@ -57,7 +57,19 @@ public final class NeoForgeQuickShulkerClient {
 
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
-        if (player == null || minecraft.screen != null) {
+        if (player == null) {
+            return;
+        }
+
+        if (minecraft.screen == null
+            && NeoForgeQuickShulkerConfig.view().openSettingsKeyEnabled()) {
+            while (NeoForgeKeyMappings.OPEN_SETTINGS_SCREEN.consumeClick()) {
+                minecraft.setScreen(new NeoForgeQuickShulkerConfigScreen(null));
+                return;
+            }
+        }
+
+        if (minecraft.screen != null) {
             return;
         }
 

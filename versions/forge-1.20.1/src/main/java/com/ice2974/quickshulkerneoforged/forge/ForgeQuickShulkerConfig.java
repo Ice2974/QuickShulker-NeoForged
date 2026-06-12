@@ -7,6 +7,8 @@ import net.minecraftforge.common.ForgeConfigSpec;
 public final class ForgeQuickShulkerConfig {
     private static final QuickShulkerConfigView DEFAULTS = QuickShulkerConfig.defaults();
     public static final ForgeConfigSpec SPEC;
+    private static final ForgeConfigSpec.ConfigValue<String> ACTIVATION_KEY;
+    private static final ForgeConfigSpec.ConfigValue<String> OPEN_SETTINGS_KEY;
     private static final ForgeConfigSpec.BooleanValue RIGHT_CLICK_TO_OPEN;
     private static final ForgeConfigSpec.BooleanValue KEYBIND_IN_HAND;
     private static final ForgeConfigSpec.BooleanValue KEYBIND_IN_INVENTORY;
@@ -16,6 +18,7 @@ public final class ForgeQuickShulkerConfig {
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_BUNDLING_TRANSFER;
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_BUNDLING_EXTRACT;
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_MOUSE_DRAGGED;
+    private static final ForgeConfigSpec.BooleanValue OPEN_SETTINGS_KEY_ENABLED;
     private static final ForgeConfigSpec.BooleanValue QUICK_SHULKER_BOX;
     private static final ForgeConfigSpec.BooleanValue QUICK_CRAFTING_TABLE;
     private static final ForgeConfigSpec.BooleanValue QUICK_STONECUTTER;
@@ -26,6 +29,12 @@ public final class ForgeQuickShulkerConfig {
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
         builder.push("activation");
+        ACTIVATION_KEY = builder
+            .comment("Keyboard key used to quick-open a supported item.")
+            .define("activationKey", DEFAULTS.activationKey().translationKey());
+        OPEN_SETTINGS_KEY = builder
+            .comment("Keyboard key used to open the QuickShulker config screen.")
+            .define("openSettingsKey", DEFAULTS.openSettingsKey().translationKey());
         RIGHT_CLICK_TO_OPEN = builder
             .comment("Allow opening supported items with right click while held.")
             .define("rightClickToOpen", DEFAULTS.rightClickToOpen());
@@ -38,6 +47,9 @@ public final class ForgeQuickShulkerConfig {
         RIGHT_CLICK_IN_INVENTORY = builder
             .comment("Allow right click to open a supported item from a hovered player inventory slot.")
             .define("rightClickInInventory", DEFAULTS.rightClickInInventory());
+        OPEN_SETTINGS_KEY_ENABLED = builder
+            .comment("Allow the open settings keybinding to open the QuickShulker config screen.")
+            .define("openSettingsKeyEnabled", DEFAULTS.openSettingsKeyEnabled());
         builder.pop();
 
         builder.push("interaction");
@@ -86,15 +98,68 @@ public final class ForgeQuickShulkerConfig {
         return VIEW;
     }
 
+    public static QuickShulkerConfig snapshot() {
+        return new QuickShulkerConfig(
+            new com.ice2974.quickshulkerneoforged.common.config.KeyBindingSpec(
+                DEFAULTS.activationKey().id(),
+                sanitizeKey(ACTIVATION_KEY.get(), DEFAULTS.activationKey().translationKey())
+            ),
+            new com.ice2974.quickshulkerneoforged.common.config.KeyBindingSpec(
+                DEFAULTS.openSettingsKey().id(),
+                sanitizeKey(OPEN_SETTINGS_KEY.get(), DEFAULTS.openSettingsKey().translationKey())
+            ),
+            RIGHT_CLICK_TO_OPEN.get(),
+            KEYBIND_IN_HAND.get(),
+            KEYBIND_IN_INVENTORY.get(),
+            RIGHT_CLICK_IN_INVENTORY.get(),
+            SUPPORTS_BUNDLING_INSERT.get(),
+            SUPPORTS_BUNDLING_PICKUP.get(),
+            SUPPORTS_BUNDLING_TRANSFER.get(),
+            SUPPORTS_BUNDLING_EXTRACT.get(),
+            SUPPORTS_MOUSE_DRAGGED.get(),
+            OPEN_SETTINGS_KEY_ENABLED.get(),
+            QUICK_SHULKER_BOX.get(),
+            QUICK_CRAFTING_TABLE.get(),
+            QUICK_STONECUTTER.get(),
+            QUICK_ENDER_CHEST.get(),
+            QUICK_ANVIL.get()
+        );
+    }
+
+    public static void apply(QuickShulkerConfig config) {
+        ACTIVATION_KEY.set(sanitizeKey(config.activationKey().translationKey(), DEFAULTS.activationKey().translationKey()));
+        OPEN_SETTINGS_KEY.set(sanitizeKey(config.openSettingsKey().translationKey(), DEFAULTS.openSettingsKey().translationKey()));
+        RIGHT_CLICK_TO_OPEN.set(config.rightClickToOpen());
+        KEYBIND_IN_HAND.set(config.keybindInHand());
+        KEYBIND_IN_INVENTORY.set(config.keybindInInventory());
+        RIGHT_CLICK_IN_INVENTORY.set(config.rightClickInInventory());
+        SUPPORTS_BUNDLING_INSERT.set(config.supportsBundlingInsert());
+        SUPPORTS_BUNDLING_PICKUP.set(config.supportsBundlingPickup());
+        SUPPORTS_BUNDLING_TRANSFER.set(config.supportsBundlingTransfer());
+        SUPPORTS_BUNDLING_EXTRACT.set(config.supportsBundlingExtract());
+        SUPPORTS_MOUSE_DRAGGED.set(config.supportsMouseDragged());
+        OPEN_SETTINGS_KEY_ENABLED.set(config.openSettingsKeyEnabled());
+        QUICK_SHULKER_BOX.set(config.quickShulkerBox());
+        QUICK_CRAFTING_TABLE.set(config.quickCraftingTables());
+        QUICK_STONECUTTER.set(config.quickStonecutter());
+        QUICK_ENDER_CHEST.set(config.quickEnderChest());
+        QUICK_ANVIL.set(config.quickAnvil());
+        SPEC.save();
+    }
+
+    private static String sanitizeKey(String configuredKey, String fallbackKey) {
+        return configuredKey == null || configuredKey.isBlank() ? fallbackKey : configuredKey;
+    }
+
     private static final class ConfigView implements QuickShulkerConfigView {
         @Override
         public com.ice2974.quickshulkerneoforged.common.config.KeyBindingSpec activationKey() {
-            return DEFAULTS.activationKey();
+            return snapshot().activationKey();
         }
 
         @Override
         public com.ice2974.quickshulkerneoforged.common.config.KeyBindingSpec openSettingsKey() {
-            return DEFAULTS.openSettingsKey();
+            return snapshot().openSettingsKey();
         }
 
         @Override
@@ -144,7 +209,7 @@ public final class ForgeQuickShulkerConfig {
 
         @Override
         public boolean openSettingsKeyEnabled() {
-            return DEFAULTS.openSettingsKeyEnabled();
+            return OPEN_SETTINGS_KEY_ENABLED.get();
         }
 
         @Override

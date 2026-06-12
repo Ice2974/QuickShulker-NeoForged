@@ -22,15 +22,15 @@ public final class QuickShulkerNeoForged {
         modContainer.registerConfig(ModConfig.Type.CLIENT, NeoForgeQuickShulkerConfig.SPEC);
         modEventBus.addListener(NeoForgeQuickShulkerNetwork::register);
         if (FMLEnvironment.dist == Dist.CLIENT) {
-            registerClientBootstrap(modEventBus);
+            registerClientBootstrap(modEventBus, modContainer);
         }
         LOGGER.info(QuickShulkerCommon.bootstrapMessage("NeoForge", "1.21.1"));
     }
 
-    private static void registerClientBootstrap(IEventBus modEventBus) {
+    private static void registerClientBootstrap(IEventBus modEventBus, ModContainer modContainer) {
         try {
             Class<?> bootstrapClass = Class.forName(CLIENT_BOOTSTRAP_CLASS);
-            bootstrapClass.getMethod("register", IEventBus.class).invoke(null, modEventBus);
+            bootstrapClass.getMethod("register", IEventBus.class, ModContainer.class).invoke(null, modEventBus, modContainer);
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException exception) {
             throw new IllegalStateException("Failed to access NeoForge client bootstrap", exception);
         } catch (InvocationTargetException exception) {

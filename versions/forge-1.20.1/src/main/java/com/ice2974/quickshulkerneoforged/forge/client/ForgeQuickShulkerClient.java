@@ -61,7 +61,19 @@ public final class ForgeQuickShulkerClient {
 
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
-        if (player == null || minecraft.screen != null) {
+        if (player == null) {
+            return;
+        }
+
+        if (minecraft.screen == null
+            && ForgeQuickShulkerConfig.view().openSettingsKeyEnabled()) {
+            while (ForgeKeyMappings.OPEN_SETTINGS_SCREEN.consumeClick()) {
+                minecraft.setScreen(new ForgeQuickShulkerConfigScreen(null));
+                return;
+            }
+        }
+
+        if (minecraft.screen != null) {
             return;
         }
 

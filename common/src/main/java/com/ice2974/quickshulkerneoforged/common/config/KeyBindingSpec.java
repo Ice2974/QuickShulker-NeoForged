@@ -7,4 +7,8 @@ public record KeyBindingSpec(String id, String defaultTranslationKey) {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(defaultTranslationKey, "defaultTranslationKey");
     }
+
+    public String translationKey() {
+        return defaultTranslationKey;
+    }
 }
