@@ -3,6 +3,8 @@ package com.ice2974.quickshulkerneoforged.common.network;
 public enum ShulkerBundlingAction {
     INSERT,
     PICKUP_INSERT,
+    MOUSE_DRAG_INSERT,
+    MOUSE_DRAG_PICKUP_INSERT,
     EXTRACT,
     TRANSFER,
     UNKNOWN;

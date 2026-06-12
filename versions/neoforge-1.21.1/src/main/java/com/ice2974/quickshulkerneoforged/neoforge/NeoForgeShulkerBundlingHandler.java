@@ -1,6 +1,7 @@
 package com.ice2974.quickshulkerneoforged.neoforge;
 
 import com.ice2974.quickshulkerneoforged.common.bundling.ShulkerBundlingResult;
+import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingAction;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingIntent;
 import com.ice2974.quickshulkerneoforged.common.open.HostIdentity;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,6 +26,8 @@ public final class NeoForgeShulkerBundlingHandler {
         switch (intent.action()) {
             case INSERT -> handleInsert(player, intent, cursorStack);
             case PICKUP_INSERT -> handlePickupInsert(player, intent, cursorStack);
+            case MOUSE_DRAG_INSERT -> handleMouseDragInsert(player, intent);
+            case MOUSE_DRAG_PICKUP_INSERT -> handleMouseDragPickupInsert(player, intent, cursorStack);
             case EXTRACT -> handleExtract(player, intent, cursorStack);
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
             case UNKNOWN -> LOGGER.debug("Rejected NeoForge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
@@ -95,6 +98,22 @@ public final class NeoForgeShulkerBundlingHandler {
         clearCreativeServerCarriedAfterSync(player, intent, "pickup_insert");
     }
 
+    private static void handleMouseDragInsert(ServerPlayer player, ShulkerBundlingIntent intent) {
+        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()
+            || !NeoForgeQuickShulkerConfig.view().supportsBundlingInsert()) {
+            return;
+        }
+        LOGGER.debug("Rejected NeoForge mouse dragged insert because ordinary-item drag insertion is disabled: hostSlot={}", intent.hostSlot());
+    }
+
+    private static void handleMouseDragPickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()
+            || !NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
+            return;
+        }
+        handlePickupInsert(player, new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, intent.hostSlot()), cursorStack);
+    }
+
     private static void handleExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
         if (!NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             return;
@@ -102,11 +121,6 @@ public final class NeoForgeShulkerBundlingHandler {
         if (isCurrentQuickOpenHost(player, intent)) {
             return;
         }
-        if (!NeoForgeHostSlotResolver.isPlayerInventorySlotRef(intent.hostSlot())) {
-            LOGGER.debug("Rejected NeoForge extract due to invalid host slot ref: {}", intent.hostSlot());
-            return;
-        }
-
         ItemStack targetStack = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot());
         if (!targetStack.isEmpty()) {
             LOGGER.debug("Rejected NeoForge extract because target slot was not empty: hostSlot={}", intent.hostSlot());
@@ -127,6 +141,11 @@ public final class NeoForgeShulkerBundlingHandler {
             return;
         }
 
+        ItemStack extractedStack = result.extractedStack().orElseThrow().copy();
+        if (!NeoForgeHostSlotResolver.canPlace(player, intent.hostSlot(), extractedStack)) {
+            LOGGER.debug("Rejected NeoForge extract because target slot cannot accept extracted stack: hostSlot={}", intent.hostSlot());
+            return;
+        }
         if (!NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()).isEmpty()) {
             LOGGER.debug("Rejected NeoForge extract because target slot changed before writeback: hostSlot={}", intent.hostSlot());
             return;
@@ -134,7 +153,7 @@ public final class NeoForgeShulkerBundlingHandler {
 
         player.containerMenu.setCarried(result.updatedContainerStack().orElseThrow().copy());
         logCreativeSetCarried(player, intent, "extract");
-        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), result.extractedStack().orElseThrow().copy());
+        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), extractedStack);
         syncPlayerInventory(player);
         clearCreativeServerCarriedAfterSync(player, intent, "extract");
     }
@@ -146,11 +165,6 @@ public final class NeoForgeShulkerBundlingHandler {
         if (isCurrentQuickOpenHost(player, intent)) {
             return;
         }
-        if (!NeoForgeHostSlotResolver.isPlayerInventorySlotRef(intent.hostSlot())) {
-            LOGGER.debug("Rejected NeoForge transfer due to invalid host slot ref: {}", intent.hostSlot());
-            return;
-        }
-
         ItemStack targetShulker = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot());
         if (!isSingleShulkerBox(targetShulker)) {
             LOGGER.debug("Rejected NeoForge transfer due to non-single-shulker target stack: hostSlot={}", intent.hostSlot());
@@ -252,6 +266,19 @@ public final class NeoForgeShulkerBundlingHandler {
 
     private static void clearCreativeServerCarriedAfterSync(ServerPlayer player, ShulkerBundlingIntent intent, String phase) {
         if (!player.getAbilities().instabuild) {
+            return;
+        }
+        if (player.containerMenu != player.inventoryMenu) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                    "NeoForge creative bundling {} kept server carried for non-inventory menu: action={}, hostSlot={}, menuClass={}, menuCarried={}",
+                    phase,
+                    intent.action(),
+                    intent.hostSlot(),
+                    player.containerMenu.getClass().getName(),
+                    describeStack(player.containerMenu.getCarried())
+                );
+            }
             return;
         }
         player.containerMenu.setCarried(ItemStack.EMPTY);

@@ -5,6 +5,7 @@ import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -42,6 +43,7 @@ public final class ForgeHostSlotResolver {
                 ? inventory.getItem(PLAYER_MAIN_INVENTORY_OFFSET + slotRef.logicalSlotIndex())
                 : ItemStack.EMPTY;
             case PLAYER_OFFHAND -> inventory.offhand.get(0);
+            case PLAYER_CONTAINER_MENU -> resolveMenuSlot(player.containerMenu, slotRef).map(Slot::getItem).orElse(ItemStack.EMPTY);
             default -> ItemStack.EMPTY;
         };
     }
@@ -60,6 +62,7 @@ public final class ForgeHostSlotResolver {
                 }
             }
             case PLAYER_OFFHAND -> inventory.offhand.set(0, stack);
+            case PLAYER_CONTAINER_MENU -> resolveMenuSlot(player.containerMenu, slotRef).ifPresent(slot -> slot.set(stack));
             default -> {
             }
         }
@@ -70,6 +73,7 @@ public final class ForgeHostSlotResolver {
             case PLAYER_HOTBAR -> isLogicalSlotInRange(slotRef.logicalSlotIndex(), PLAYER_HOTBAR_SIZE);
             case PLAYER_MAIN_INVENTORY -> isLogicalSlotInRange(slotRef.logicalSlotIndex(), PLAYER_MAIN_INVENTORY_SIZE);
             case PLAYER_OFFHAND -> slotRef.logicalSlotIndex() == 0;
+            case PLAYER_CONTAINER_MENU -> slotRef.menuSlotIndex() >= 0;
             default -> false;
         };
     }
@@ -100,6 +104,47 @@ public final class ForgeHostSlotResolver {
             return Optional.of(new HostSlotRef(HostStorageScope.PLAYER_OFFHAND, 0, menuSlotIndex));
         }
         return Optional.empty();
+    }
+
+    public static Optional<HostSlotRef> forBundlingSlot(Player player, Slot slot, int menuSlotIndex) {
+        Optional<HostSlotRef> playerInventorySlot = forPlayerInventorySlot(player, slot, menuSlotIndex);
+        if (playerInventorySlot.isPresent()) {
+            return playerInventorySlot;
+        }
+        if (slot == null || menuSlotIndex < 0) {
+            return Optional.empty();
+        }
+
+        Slot effectiveSlot = unwrapSlot(slot);
+        if (effectiveSlot.container == player.getInventory()) {
+            return Optional.empty();
+        }
+        return Optional.of(new HostSlotRef(
+            HostStorageScope.PLAYER_CONTAINER_MENU,
+            effectiveSlot.getSlotIndex(),
+            menuSlotIndex
+        ));
+    }
+
+    public static boolean canPlace(Player player, HostSlotRef slotRef, ItemStack stack) {
+        if (slotRef.scope() == HostStorageScope.PLAYER_CONTAINER_MENU) {
+            return resolveMenuSlot(player.containerMenu, slotRef)
+                .map(slot -> slot.mayPlace(stack))
+                .orElse(false);
+        }
+        return isPlayerInventorySlotRef(slotRef);
+    }
+
+    private static Optional<Slot> resolveMenuSlot(AbstractContainerMenu menu, HostSlotRef slotRef) {
+        if (menu == null || slotRef.menuSlotIndex() < 0 || slotRef.menuSlotIndex() >= menu.slots.size()) {
+            return Optional.empty();
+        }
+
+        Slot slot = menu.slots.get(slotRef.menuSlotIndex());
+        if (slot == null || slot.container == null || slot.container instanceof Inventory) {
+            return Optional.empty();
+        }
+        return Optional.of(slot);
     }
 
     private static Slot unwrapSlot(Slot slot) {

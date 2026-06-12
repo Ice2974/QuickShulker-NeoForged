@@ -35,13 +35,17 @@ import net.minecraftforge.fml.common.Mod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.List;
+import java.util.Set;
 
 @Mod.EventBusSubscriber(modid = QuickShulkerConstants.MOD_ID, value = Dist.CLIENT)
 public final class ForgeQuickShulkerClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(ForgeQuickShulkerClient.class);
     private static boolean suppressNextInventoryRightRelease;
+    private static DragMode dragMode = DragMode.NONE;
+    private static final Set<HostSlotRef> DRAGGED_HOST_SLOTS = new HashSet<>();
 
     private ForgeQuickShulkerClient() {
     }
@@ -120,7 +124,10 @@ public final class ForgeQuickShulkerClient {
             return;
         }
 
-        if (trySendBundlingIntent(player, event.getScreen())) {
+        Optional<ShulkerBundlingIntent> bundlingIntent = determineBundlingIntent(player, event.getScreen());
+        if (bundlingIntent.isPresent()) {
+            sendBundlingIntent((AbstractContainerScreen<?>) event.getScreen(), bundlingIntent.get());
+            beginMouseDrag(player, bundlingIntent.get());
             suppressNextInventoryRightRelease = true;
             event.setCanceled(true);
             return;
@@ -139,7 +146,24 @@ public final class ForgeQuickShulkerClient {
     }
 
     @SubscribeEvent
+    public static void onScreenMouseDragged(ScreenEvent.MouseDragged.Pre event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Player player = minecraft.player;
+        if (player == null || event.getMouseButton() != 1) {
+            clearMouseDrag();
+            return;
+        }
+
+        if (trySendMouseDraggedBundlingIntent(player, event.getScreen())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
     public static void onScreenMouseReleased(ScreenEvent.MouseButtonReleased.Pre event) {
+        if (event.getButton() == 1) {
+            clearMouseDrag();
+        }
         if (event.getButton() != 1 || !suppressNextInventoryRightRelease) {
             return;
         }
@@ -151,6 +175,7 @@ public final class ForgeQuickShulkerClient {
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         suppressNextInventoryRightRelease = false;
+        clearMouseDrag();
         ForgeQuickOpenMouseRestore.onScreenInit(event.getScreen());
     }
 
@@ -239,23 +264,23 @@ public final class ForgeQuickShulkerClient {
         ForgeQuickShulkerNetwork.sendOpenHostItem(new ForgeOpenHostItemPacket(intent));
     }
 
-    private static boolean trySendBundlingIntent(Player player, Screen screen) {
+    private static Optional<ShulkerBundlingIntent> determineBundlingIntent(Player player, Screen screen) {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
-            return false;
+            return Optional.empty();
         }
 
         Slot hoveredSlot = containerScreen.getSlotUnderMouse();
         if (hoveredSlot == null) {
-            return false;
+            return Optional.empty();
         }
 
-        Optional<HostSlotRef> hostSlot = ForgeHostSlotResolver.forPlayerInventorySlot(player, hoveredSlot, hoveredSlot.index);
+        Optional<HostSlotRef> hostSlot = ForgeHostSlotResolver.forBundlingSlot(player, hoveredSlot, hoveredSlot.index);
         if (hostSlot.isEmpty()) {
-            return false;
+            return Optional.empty();
         }
         if (containerScreen.getMenu() instanceof ForgeQuickOpenMenu quickOpenMenu
             && HostIdentity.sameSlot(quickOpenMenu.hostSlotRef(), hostSlot.get())) {
-            return false;
+            return Optional.empty();
         }
 
         ItemStack carried = containerScreen.getMenu().getCarried();
@@ -263,23 +288,20 @@ public final class ForgeQuickShulkerClient {
         if (ForgeQuickShulkerConfig.view().supportsBundlingExtract()
             && hoveredStack.isEmpty()
             && isSingleShulkerBox(carried)) {
-            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.EXTRACT, hostSlot.get()));
-            return true;
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.EXTRACT, hostSlot.get()));
         }
 
         if (ForgeQuickShulkerConfig.view().supportsBundlingTransfer()
             && isSingleShulkerBox(carried)
             && isSingleShulkerBox(hoveredStack)) {
-            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.TRANSFER, hostSlot.get()));
-            return true;
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.TRANSFER, hostSlot.get()));
         }
 
         if (ForgeQuickShulkerConfig.view().supportsBundlingInsert()
             && !carried.isEmpty()
             && !isShulkerBox(carried)
             && isSingleShulkerBox(hoveredStack)) {
-            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.INSERT, hostSlot.get()));
-            return true;
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.INSERT, hostSlot.get()));
         }
 
         if (ForgeQuickShulkerConfig.view().supportsBundlingPickup()
@@ -287,11 +309,77 @@ public final class ForgeQuickShulkerClient {
             && !hoveredStack.isEmpty()
             && !isShulkerBox(hoveredStack)
             && hoveredStack.getItem().canFitInsideContainerItems()) {
-            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, hostSlot.get()));
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, hostSlot.get()));
+        }
+
+        return Optional.empty();
+    }
+
+    private static void beginMouseDrag(Player player, ShulkerBundlingIntent intent) {
+        clearMouseDrag();
+        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+            return;
+        }
+        if (intent.action() == ShulkerBundlingAction.PICKUP_INSERT) {
+            dragMode = DragMode.PICKUP_INTO_CARRIED_SHULKER;
+        } else {
+            return;
+        }
+        DRAGGED_HOST_SLOTS.add(intent.hostSlot());
+    }
+
+    private static boolean trySendMouseDraggedBundlingIntent(Player player, Screen screen) {
+        if (dragMode == DragMode.NONE) {
+            return false;
+        }
+        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+            clearMouseDrag();
+            return false;
+        }
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
+            clearMouseDrag();
+            return false;
+        }
+
+        Slot hoveredSlot = containerScreen.getSlotUnderMouse();
+        if (hoveredSlot == null) {
             return true;
         }
 
-        return false;
+        Optional<HostSlotRef> hostSlot = ForgeHostSlotResolver.forBundlingSlot(player, hoveredSlot, hoveredSlot.index);
+        if (hostSlot.isEmpty()) {
+            return true;
+        }
+        if (DRAGGED_HOST_SLOTS.contains(hostSlot.get())) {
+            return true;
+        }
+        if (containerScreen.getMenu() instanceof ForgeQuickOpenMenu quickOpenMenu
+            && HostIdentity.sameSlot(quickOpenMenu.hostSlotRef(), hostSlot.get())) {
+            return true;
+        }
+
+        ItemStack carried = containerScreen.getMenu().getCarried();
+        ItemStack hoveredStack = hoveredSlot.getItem();
+        ShulkerBundlingAction action;
+        if (dragMode == DragMode.PICKUP_INTO_CARRIED_SHULKER
+            && ForgeQuickShulkerConfig.view().supportsBundlingPickup()
+            && isSingleShulkerBox(carried)
+            && !hoveredStack.isEmpty()
+            && !isShulkerBox(hoveredStack)
+            && hoveredStack.getItem().canFitInsideContainerItems()) {
+            action = ShulkerBundlingAction.MOUSE_DRAG_PICKUP_INSERT;
+        } else {
+            return true;
+        }
+
+        DRAGGED_HOST_SLOTS.add(hostSlot.get());
+        sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(action, hostSlot.get()));
+        return true;
+    }
+
+    private static void clearMouseDrag() {
+        dragMode = DragMode.NONE;
+        DRAGGED_HOST_SLOTS.clear();
     }
 
     private static void sendBundlingIntent(AbstractContainerScreen<?> containerScreen, ShulkerBundlingIntent intent) {
@@ -405,5 +493,10 @@ public final class ForgeQuickShulkerClient {
             return "<empty>";
         }
         return ForgeItemSnapshots.snapshot(stack).itemKey() + " x" + stack.getCount();
+    }
+
+    private enum DragMode {
+        NONE,
+        PICKUP_INTO_CARRIED_SHULKER
     }
 }

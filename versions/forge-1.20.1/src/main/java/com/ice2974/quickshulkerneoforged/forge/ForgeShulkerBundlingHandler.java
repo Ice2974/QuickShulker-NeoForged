@@ -26,6 +26,8 @@ public final class ForgeShulkerBundlingHandler {
         switch (intent.action()) {
             case INSERT -> handleInsert(player, intent, cursorStack);
             case PICKUP_INSERT -> handlePickupInsert(player, intent, cursorStack);
+            case MOUSE_DRAG_INSERT -> handleMouseDragInsert(player, intent);
+            case MOUSE_DRAG_PICKUP_INSERT -> handleMouseDragPickupInsert(player, intent, cursorStack);
             case EXTRACT -> handleExtract(player, intent, cursorStack);
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
             case UNKNOWN -> LOGGER.debug("Rejected Forge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
@@ -96,6 +98,22 @@ public final class ForgeShulkerBundlingHandler {
         clearCreativeServerCarriedAfterSync(player, intent, "pickup_insert");
     }
 
+    private static void handleMouseDragInsert(ServerPlayer player, ShulkerBundlingIntent intent) {
+        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()
+            || !ForgeQuickShulkerConfig.view().supportsBundlingInsert()) {
+            return;
+        }
+        LOGGER.debug("Rejected Forge mouse dragged insert because ordinary-item drag insertion is disabled: hostSlot={}", intent.hostSlot());
+    }
+
+    private static void handleMouseDragPickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()
+            || !ForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
+            return;
+        }
+        handlePickupInsert(player, new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, intent.hostSlot()), cursorStack);
+    }
+
     private static void handleExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
         if (!ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             return;
@@ -103,11 +121,6 @@ public final class ForgeShulkerBundlingHandler {
         if (isCurrentQuickOpenHost(player, intent)) {
             return;
         }
-        if (!ForgeHostSlotResolver.isPlayerInventorySlotRef(intent.hostSlot())) {
-            LOGGER.debug("Rejected Forge extract due to invalid host slot ref: {}", intent.hostSlot());
-            return;
-        }
-
         ItemStack targetStack = ForgeHostSlotResolver.resolve(player, intent.hostSlot());
         if (!targetStack.isEmpty()) {
             LOGGER.debug("Rejected Forge extract because target slot was not empty: hostSlot={}", intent.hostSlot());
@@ -128,6 +141,11 @@ public final class ForgeShulkerBundlingHandler {
             return;
         }
 
+        ItemStack extractedStack = result.extractedStack().orElseThrow().copy();
+        if (!ForgeHostSlotResolver.canPlace(player, intent.hostSlot(), extractedStack)) {
+            LOGGER.debug("Rejected Forge extract because target slot cannot accept extracted stack: hostSlot={}", intent.hostSlot());
+            return;
+        }
         if (!ForgeHostSlotResolver.resolve(player, intent.hostSlot()).isEmpty()) {
             LOGGER.debug("Rejected Forge extract because target slot changed before writeback: hostSlot={}", intent.hostSlot());
             return;
@@ -135,7 +153,7 @@ public final class ForgeShulkerBundlingHandler {
 
         player.containerMenu.setCarried(result.updatedContainerStack().orElseThrow().copy());
         logCreativeSetCarried(player, intent, "extract");
-        ForgeHostSlotResolver.set(player, intent.hostSlot(), result.extractedStack().orElseThrow().copy());
+        ForgeHostSlotResolver.set(player, intent.hostSlot(), extractedStack);
         syncPlayerInventory(player);
         clearCreativeServerCarriedAfterSync(player, intent, "extract");
     }
@@ -147,11 +165,6 @@ public final class ForgeShulkerBundlingHandler {
         if (isCurrentQuickOpenHost(player, intent)) {
             return;
         }
-        if (!ForgeHostSlotResolver.isPlayerInventorySlotRef(intent.hostSlot())) {
-            LOGGER.debug("Rejected Forge transfer due to invalid host slot ref: {}", intent.hostSlot());
-            return;
-        }
-
         ItemStack targetShulker = ForgeHostSlotResolver.resolve(player, intent.hostSlot());
         if (!isSingleShulkerBox(targetShulker)) {
             LOGGER.debug("Rejected Forge transfer due to non-single-shulker target stack: hostSlot={}", intent.hostSlot());
@@ -253,6 +266,19 @@ public final class ForgeShulkerBundlingHandler {
 
     private static void clearCreativeServerCarriedAfterSync(ServerPlayer player, ShulkerBundlingIntent intent, String phase) {
         if (!player.getAbilities().instabuild) {
+            return;
+        }
+        if (player.containerMenu != player.inventoryMenu) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug(
+                    "Forge creative bundling {} kept server carried for non-inventory menu: action={}, hostSlot={}, menuClass={}, menuCarried={}",
+                    phase,
+                    intent.action(),
+                    intent.hostSlot(),
+                    player.containerMenu.getClass().getName(),
+                    describeStack(player.containerMenu.getCarried())
+                );
+            }
             return;
         }
         player.containerMenu.setCarried(ItemStack.EMPTY);

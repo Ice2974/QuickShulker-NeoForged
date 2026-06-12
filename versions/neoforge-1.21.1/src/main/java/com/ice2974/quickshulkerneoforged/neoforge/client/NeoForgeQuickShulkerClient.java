@@ -35,13 +35,17 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.List;
+import java.util.Set;
 
 @EventBusSubscriber(modid = QuickShulkerConstants.MOD_ID, value = Dist.CLIENT)
 public final class NeoForgeQuickShulkerClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(NeoForgeQuickShulkerClient.class);
     private static boolean suppressNextInventoryRightRelease;
+    private static DragMode dragMode = DragMode.NONE;
+    private static final Set<HostSlotRef> DRAGGED_HOST_SLOTS = new HashSet<>();
 
     private NeoForgeQuickShulkerClient() {
     }
@@ -117,7 +121,10 @@ public final class NeoForgeQuickShulkerClient {
             return;
         }
 
-        if (trySendBundlingIntent(player, event.getScreen())) {
+        Optional<ShulkerBundlingIntent> bundlingIntent = determineBundlingIntent(player, event.getScreen());
+        if (bundlingIntent.isPresent()) {
+            sendBundlingIntent((AbstractContainerScreen<?>) event.getScreen(), bundlingIntent.get());
+            beginMouseDrag(player, bundlingIntent.get());
             suppressNextInventoryRightRelease = true;
             event.setCanceled(true);
             return;
@@ -136,7 +143,24 @@ public final class NeoForgeQuickShulkerClient {
     }
 
     @SubscribeEvent
+    public static void onScreenMouseDragged(ScreenEvent.MouseDragged.Pre event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Player player = minecraft.player;
+        if (player == null || event.getMouseButton() != 1) {
+            clearMouseDrag();
+            return;
+        }
+
+        if (trySendMouseDraggedBundlingIntent(player, event.getScreen())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
     public static void onScreenMouseReleased(ScreenEvent.MouseButtonReleased.Pre event) {
+        if (event.getButton() == 1) {
+            clearMouseDrag();
+        }
         if (event.getButton() != 1 || !suppressNextInventoryRightRelease) {
             return;
         }
@@ -148,6 +172,7 @@ public final class NeoForgeQuickShulkerClient {
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         suppressNextInventoryRightRelease = false;
+        clearMouseDrag();
         NeoForgeQuickOpenMouseRestore.onScreenInit(event.getScreen());
     }
 
@@ -248,23 +273,23 @@ public final class NeoForgeQuickShulkerClient {
         NeoForgeQuickShulkerNetwork.sendOpenHostItem(new NeoForgeOpenHostItemPayload(intent));
     }
 
-    private static boolean trySendBundlingIntent(Player player, Screen screen) {
+    private static Optional<ShulkerBundlingIntent> determineBundlingIntent(Player player, Screen screen) {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
-            return false;
+            return Optional.empty();
         }
 
         Slot hoveredSlot = containerScreen.getSlotUnderMouse();
         if (hoveredSlot == null) {
-            return false;
+            return Optional.empty();
         }
 
-        Optional<HostSlotRef> hostSlot = NeoForgeHostSlotResolver.forPlayerInventorySlot(player, containerScreen.getMenu(), hoveredSlot);
+        Optional<HostSlotRef> hostSlot = NeoForgeHostSlotResolver.forBundlingSlot(player, containerScreen.getMenu(), hoveredSlot);
         if (hostSlot.isEmpty()) {
-            return false;
+            return Optional.empty();
         }
         if (containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu quickOpenMenu
             && HostIdentity.sameSlot(quickOpenMenu.hostSlotRef(), hostSlot.get())) {
-            return false;
+            return Optional.empty();
         }
 
         ItemStack carried = containerScreen.getMenu().getCarried();
@@ -272,23 +297,20 @@ public final class NeoForgeQuickShulkerClient {
         if (NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()
             && hoveredStack.isEmpty()
             && isSingleShulkerBox(carried)) {
-            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.EXTRACT, hostSlot.get()));
-            return true;
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.EXTRACT, hostSlot.get()));
         }
 
         if (NeoForgeQuickShulkerConfig.view().supportsBundlingTransfer()
             && isSingleShulkerBox(carried)
             && isSingleShulkerBox(hoveredStack)) {
-            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.TRANSFER, hostSlot.get()));
-            return true;
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.TRANSFER, hostSlot.get()));
         }
 
         if (NeoForgeQuickShulkerConfig.view().supportsBundlingInsert()
             && !carried.isEmpty()
             && !isShulkerBox(carried)
             && isSingleShulkerBox(hoveredStack)) {
-            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.INSERT, hostSlot.get()));
-            return true;
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.INSERT, hostSlot.get()));
         }
 
         if (NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()
@@ -296,11 +318,77 @@ public final class NeoForgeQuickShulkerClient {
             && !hoveredStack.isEmpty()
             && !isShulkerBox(hoveredStack)
             && hoveredStack.getItem().canFitInsideContainerItems()) {
-            sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, hostSlot.get()));
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.PICKUP_INSERT, hostSlot.get()));
+        }
+
+        return Optional.empty();
+    }
+
+    private static void beginMouseDrag(Player player, ShulkerBundlingIntent intent) {
+        clearMouseDrag();
+        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+            return;
+        }
+        if (intent.action() == ShulkerBundlingAction.PICKUP_INSERT) {
+            dragMode = DragMode.PICKUP_INTO_CARRIED_SHULKER;
+        } else {
+            return;
+        }
+        DRAGGED_HOST_SLOTS.add(intent.hostSlot());
+    }
+
+    private static boolean trySendMouseDraggedBundlingIntent(Player player, Screen screen) {
+        if (dragMode == DragMode.NONE) {
+            return false;
+        }
+        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+            clearMouseDrag();
+            return false;
+        }
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
+            clearMouseDrag();
+            return false;
+        }
+
+        Slot hoveredSlot = containerScreen.getSlotUnderMouse();
+        if (hoveredSlot == null) {
             return true;
         }
 
-        return false;
+        Optional<HostSlotRef> hostSlot = NeoForgeHostSlotResolver.forBundlingSlot(player, containerScreen.getMenu(), hoveredSlot);
+        if (hostSlot.isEmpty()) {
+            return true;
+        }
+        if (DRAGGED_HOST_SLOTS.contains(hostSlot.get())) {
+            return true;
+        }
+        if (containerScreen.getMenu() instanceof NeoForgeQuickOpenMenu quickOpenMenu
+            && HostIdentity.sameSlot(quickOpenMenu.hostSlotRef(), hostSlot.get())) {
+            return true;
+        }
+
+        ItemStack carried = containerScreen.getMenu().getCarried();
+        ItemStack hoveredStack = hoveredSlot.getItem();
+        ShulkerBundlingAction action;
+        if (dragMode == DragMode.PICKUP_INTO_CARRIED_SHULKER
+            && NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()
+            && isSingleShulkerBox(carried)
+            && !hoveredStack.isEmpty()
+            && !isShulkerBox(hoveredStack)
+            && hoveredStack.getItem().canFitInsideContainerItems()) {
+            action = ShulkerBundlingAction.MOUSE_DRAG_PICKUP_INSERT;
+        } else {
+            return true;
+        }
+
+        DRAGGED_HOST_SLOTS.add(hostSlot.get());
+        sendBundlingIntent(containerScreen, new ShulkerBundlingIntent(action, hostSlot.get()));
+        return true;
+    }
+
+    private static void clearMouseDrag() {
+        dragMode = DragMode.NONE;
+        DRAGGED_HOST_SLOTS.clear();
     }
 
     private static void sendBundlingIntent(AbstractContainerScreen<?> containerScreen, ShulkerBundlingIntent intent) {
@@ -414,5 +502,10 @@ public final class NeoForgeQuickShulkerClient {
             return "<empty>";
         }
         return NeoForgeItemSnapshots.snapshot(stack).itemKey() + " x" + stack.getCount();
+    }
+
+    private enum DragMode {
+        NONE,
+        PICKUP_INTO_CARRIED_SHULKER
     }
 }

@@ -183,6 +183,8 @@ public final class ForgeQuickShulkerConfigScreen extends Screen {
         top += ROW_HEIGHT;
         addToggle(left, top, "config.quickshulker_neoforged.supports_bundling_transfer", supportsBundlingTransfer, value -> supportsBundlingTransfer = value);
         addToggle(right, top, "config.quickshulker_neoforged.supports_bundling_extract", supportsBundlingExtract, value -> supportsBundlingExtract = value);
+        top += ROW_HEIGHT;
+        addToggle(left, top, "config.quickshulker_neoforged.supports_mouse_dragged", supportsMouseDragged, value -> supportsMouseDragged = value);
     }
 
     private void addFooter(int left, int right) {

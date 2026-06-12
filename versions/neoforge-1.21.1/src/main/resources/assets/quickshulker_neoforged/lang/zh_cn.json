@@ -6,7 +6,7 @@
   "screen.quickshulker_neoforged.config.capture_hint": "按下一个按键以重新绑定，或按 Esc 取消。",
   "screen.quickshulker_neoforged.config.listening": "<请按键>",
   "screen.quickshulker_neoforged.config.defaults": "重置默认值",
-  "screen.quickshulker_neoforged.config.unimplemented": "supportsMouseDragged 仅为兼容保留显示，当前不可编辑。",
+  "screen.quickshulker_neoforged.config.unimplemented": "该选项当前不可用。",
   "screen.quickshulker_neoforged.config.tab.activation": "基础功能",
   "screen.quickshulker_neoforged.config.tab.quick_open": "Quick Open",
   "screen.quickshulker_neoforged.config.tab.bundling": "潜影盒 Bundling",
@@ -29,5 +29,5 @@
   "config.quickshulker_neoforged.supports_bundling_pickup": "启用潜影盒 bundling 捡取插入",
   "config.quickshulker_neoforged.supports_bundling_transfer": "启用潜影盒 bundling 转移",
   "config.quickshulker_neoforged.supports_bundling_extract": "启用潜影盒 bundling 取出",
-  "config.quickshulker_neoforged.supports_mouse_dragged": "supportsMouseDragged（保留）"
+  "config.quickshulker_neoforged.supports_mouse_dragged": "潜影盒鼠标拖拽批量操作"
 }

@@ -6,7 +6,7 @@
   "screen.quickshulker_neoforged.config.capture_hint": "Press a key to rebind, or press Esc to cancel.",
   "screen.quickshulker_neoforged.config.listening": "<press key>",
   "screen.quickshulker_neoforged.config.defaults": "Reset Defaults",
-  "screen.quickshulker_neoforged.config.unimplemented": "supportsMouseDragged is shown for compatibility and is not editable yet.",
+  "screen.quickshulker_neoforged.config.unimplemented": "This option is not available.",
   "screen.quickshulker_neoforged.config.tab.activation": "Basic Features",
   "screen.quickshulker_neoforged.config.tab.quick_open": "Quick Open",
   "screen.quickshulker_neoforged.config.tab.bundling": "Shulker Bundling",
@@ -29,5 +29,5 @@
   "config.quickshulker_neoforged.supports_bundling_pickup": "Enable shulker bundling pickup insert",
   "config.quickshulker_neoforged.supports_bundling_transfer": "Enable shulker bundling transfer",
   "config.quickshulker_neoforged.supports_bundling_extract": "Enable shulker bundling extract",
-  "config.quickshulker_neoforged.supports_mouse_dragged": "supportsMouseDragged (reserved)"
+  "config.quickshulker_neoforged.supports_mouse_dragged": "Shulker mouse dragged interactions"
 }
