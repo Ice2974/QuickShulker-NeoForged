@@ -29,6 +29,7 @@ public final class ForgeShulkerBundlingHandler {
             case MOUSE_DRAG_INSERT -> handleMouseDragInsert(player, intent);
             case MOUSE_DRAG_PICKUP_INSERT -> handleMouseDragPickupInsert(player, intent, cursorStack);
             case EXTRACT -> handleExtract(player, intent, cursorStack);
+            case MOUSE_DRAG_EXTRACT -> handleMouseDragExtract(player, intent, cursorStack);
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
             case UNKNOWN -> LOGGER.debug("Rejected Forge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
         }
@@ -133,7 +134,26 @@ public final class ForgeShulkerBundlingHandler {
     }
 
     private static void handleExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        handleExtractCore(player, intent, cursorStack, false);
+    }
+
+    private static void handleMouseDragExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+            return;
+        }
+        handleExtractCore(player, intent, cursorStack, true);
+    }
+
+    private static void handleExtractCore(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        boolean mouseDragged
+    ) {
         if (!ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
+            return;
+        }
+        if (mouseDragged && !ForgeQuickShulkerConfig.view().supportsMouseDragged()) {
             return;
         }
         if (isCurrentQuickOpenHost(player, intent)) {

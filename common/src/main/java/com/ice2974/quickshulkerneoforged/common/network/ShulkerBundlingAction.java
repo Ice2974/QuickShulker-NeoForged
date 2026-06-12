@@ -6,6 +6,7 @@ public enum ShulkerBundlingAction {
     MOUSE_DRAG_INSERT,
     MOUSE_DRAG_PICKUP_INSERT,
     EXTRACT,
+    MOUSE_DRAG_EXTRACT,
     TRANSFER,
     UNKNOWN;
 

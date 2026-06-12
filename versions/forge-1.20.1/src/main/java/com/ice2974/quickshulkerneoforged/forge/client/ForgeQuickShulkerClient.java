@@ -322,6 +322,9 @@ public final class ForgeQuickShulkerClient {
         }
         if (intent.action() == ShulkerBundlingAction.PICKUP_INSERT) {
             dragMode = DragMode.PICKUP_INTO_CARRIED_SHULKER;
+        } else if (intent.action() == ShulkerBundlingAction.EXTRACT
+            && ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
+            dragMode = DragMode.EXTRACT_FROM_CARRIED_SHULKER;
         } else {
             return;
         }
@@ -368,6 +371,11 @@ public final class ForgeQuickShulkerClient {
             && !isShulkerBox(hoveredStack)
             && hoveredStack.getItem().canFitInsideContainerItems()) {
             action = ShulkerBundlingAction.MOUSE_DRAG_PICKUP_INSERT;
+        } else if (dragMode == DragMode.EXTRACT_FROM_CARRIED_SHULKER
+            && ForgeQuickShulkerConfig.view().supportsBundlingExtract()
+            && hoveredStack.isEmpty()
+            && isSingleShulkerBox(carried)) {
+            action = ShulkerBundlingAction.MOUSE_DRAG_EXTRACT;
         } else {
             return true;
         }
@@ -497,6 +505,7 @@ public final class ForgeQuickShulkerClient {
 
     private enum DragMode {
         NONE,
-        PICKUP_INTO_CARRIED_SHULKER
+        PICKUP_INTO_CARRIED_SHULKER,
+        EXTRACT_FROM_CARRIED_SHULKER
     }
 }
