@@ -1,106 +1,124 @@
-# stage-1.0.0-p4-bundling-menu-slots
+# stage-1.0.0-p3.1-bundling-menu-slots
 
-> 追加修复：创造模式下，QuickShulker / 原版容器等非玩家背包菜单中的“拿盒子右键收纳物品”
-> 和“拿盒子右键空格子放出物品”不再在同步后清空服务端 carried，避免客户端鼠标上的潜影盒
-> 被同步成空。玩家自身背包菜单仍保留同步后清理服务端 carried 的旧策略。
+> 阶段 3.1 将单次 bundling 与 mouse dragged 收纳目标扩展到当前菜单槽位。本次文档同步补上安全补丁，并在保守前提下重新放开一部分已知安全的输入槽位。
 
 ## 阶段目标
 
-本阶段按维护者反馈调整 shulker bundling 的右键与拖拽行为：
-
-- 移除“鼠标携带普通物品，右键拖过多个潜影盒槽位，逐个插入”的批量拖拽路径。
-- 将单次右键 bundling 目标槽从玩家背包扩展到当前菜单槽位，包括 QuickShulker 菜单、原版容器菜单和物品栏合成格。
-- 将“拿盒子右键物品将其收纳”“拿物品右键盒子将其放入”“拿盒子右键空格子放出物品”同步扩展到上述菜单槽位。
-- 允许创造模式使用保留的拖拽收纳路径，即“拿单个潜影盒右键拖过多个普通物品槽位，将物品收纳进鼠标潜影盒”。
+- 保留阶段 3 已完成的“鼠标携带单个潜影盒，右键拖过多个普通物品槽位，将物品收纳进鼠标潜影盒”的 `mouse dragged` 收纳路径。
+- 保留玩家背包、hotbar、副手和安全菜单槽位中的单次 bundling / 拖拽收纳。
+- 收紧 `PLAYER_CONTAINER_MENU` 槽位判定，避免把特殊输出槽、虚拟槽和无法证明安全的菜单槽位纳入 bundling 目标。
+- 在可证明不会绕过原版结果结算的前提下，允许一部分原版输入槽位继续使用 QuickShulker bundling。
+- 不进入 mouse dragged 批量放出物品阶段。
 
 ## 实现内容
 
 ### Forge 1.20.1
 
-- `ForgeHostSlotResolver` 新增 `PLAYER_CONTAINER_MENU` 槽位解析：
-  - 玩家背包、hotbar、副手仍沿用原有稳定映射。
-  - 非玩家背包的当前菜单槽位使用 `menuSlotIndex` 在服务端当前 `player.containerMenu` 中重新定位。
-  - 写入当前菜单槽位前会重新解析服务端真实槽位，避免信任客户端上传的 `ItemStack`。
-- `ForgeQuickShulkerClient` 的 bundling 入口改用通用 bundling 槽位解析：
-  - QuickShulker 菜单槽、原版容器槽、物品栏合成格可发起 bundling 请求。
-  - 不再为普通物品拖拽插入潜影盒创建拖拽状态。
-  - 保留“拿潜影盒拖过普通物品槽位收纳”的拖拽状态，并移除创造模式禁用条件。
-- `ForgeShulkerBundlingHandler`：
-  - `INSERT`、`PICKUP_INSERT`、`EXTRACT`、`TRANSFER` 使用扩展后的槽位解析读写目标。
-  - `EXTRACT` 写入空槽前校验目标槽 `mayPlace`，避免写入不接受该物品的槽位。
-  - `MOUSE_DRAG_INSERT` 服务端显式拒绝，防旧客户端或异常包恢复已移除行为。
-  - `MOUSE_DRAG_PICKUP_INSERT` 在创造模式下使用客户端随包携带的 cursor 副本继续处理。
+- `ForgeHostSlotResolver`
+  - bundling 槽位判定从“纯存储菜单 allowlist”扩展为“按菜单类型 + 槽位索引”的安全判定。
+  - 继续放行原版常规存储菜单中的普通存储槽。
+  - 额外放行玩家背包合成输入槽、工作台输入槽、铁砧输入槽、切石机输入槽。
+  - 结果槽和其他无法证明安全的菜单槽位继续拒绝。
+- `ForgeShulkerBundlingHandler`
+  - `INSERT`、`PICKUP_INSERT`、`MOUSE_DRAG_PICKUP_INSERT`、`TRANSFER` 会先校验目标槽是否允许安全读取 / 缩减，再校验写回是否安全。
+  - `EXTRACT` 在向空槽写入前会校验该槽是否允许安全替换。
+  - 不安全槽位会被服务端直接拒绝，避免直接 `set` 特殊输出槽。
 
 ### NeoForge 1.21.1
 
-- 与 Forge 同步扩展 `NeoForgeHostSlotResolver`、`NeoForgeQuickShulkerClient` 和 `NeoForgeShulkerBundlingHandler`。
-- NeoForge 侧仍使用 1.21.1 平台的数据组件读写逻辑，未把 Forge NBT-only 逻辑引入 NeoForge 模块。
+- `NeoForgeHostSlotResolver`
+  - 与 Forge 侧同步增加“按菜单类型 + 槽位索引”的 bundling 安全槽位判定。
+  - 继续放行原版常规存储菜单中的普通存储槽。
+  - 额外放行玩家背包合成输入槽、工作台输入槽、铁砧输入槽、切石机输入槽。
+  - 结果槽和其他无法证明安全的菜单槽位继续拒绝。
+- `NeoForgeShulkerBundlingHandler`
+  - 与 Forge 侧同步收紧 `INSERT`、`PICKUP_INSERT`、`MOUSE_DRAG_PICKUP_INSERT`、`TRANSFER`、`EXTRACT` 的槽位安全校验。
+  - 不安全槽位会被服务端直接拒绝。
 
-## 已移除行为
+## 当前继续支持的槽位
 
-当前不再支持：
+- 玩家背包主背包槽位。
+- 玩家 hotbar。
+- 玩家副手槽位。
+- 玩家背包 2x2 合成输入槽位。
+- 原版常规存储容器的普通存储槽：
+  - 箱子菜单
+  - 潜影盒菜单
+  - 漏斗菜单
+  - 发射器 / 投掷器菜单
+- 原版工作台输入槽位。
+- QuickShulker 工作台页面输入槽位。
+- 原版铁砧输入槽位。
+- QuickShulker 铁砧页面输入槽位。
+- 原版切石机输入槽位。
+- QuickShulker 切石机页面输入槽位。
 
-- 鼠标携带普通物品，按住右键拖过多个潜影盒槽位，逐个插入。
+上述范围内继续支持：
 
-单次右键“拿物品右键盒子将其放入”仍保留；只是不会在拖过多个盒子时继续批量插入。
+- `INSERT`
+- `PICKUP_INSERT`
+- `MOUSE_DRAG_PICKUP_INSERT`
+- `TRANSFER`
+- `EXTRACT`
 
-## 保留并扩展的行为
+## 当前明确拒绝的槽位
 
-以下行为现在可在玩家背包、QuickShulker 菜单、原版容器菜单和物品栏合成格中触发：
+- 玩家背包 2x2 合成结果槽。
+- 工作台结果槽。
+- 熔炉结果槽。
+- 村民交易结果槽。
+- 铁砧结果槽。
+- 切石机结果槽。
+- 其他配方 / 结算结果槽。
+- 其他特殊输出槽。
+- 虚拟槽。
+- 不允许安全直接 `set` 的槽位。
+- 无法确认安全的第三方菜单槽位。
 
-- 鼠标拿普通物品，右键单个潜影盒，将鼠标物品放入潜影盒。
-- 鼠标拿单个潜影盒，右键普通物品槽，将该槽物品收纳进鼠标潜影盒。
-- 鼠标拿单个潜影盒，右键空槽，从潜影盒放出第一组非空物品。
-- 鼠标拿单个潜影盒，右键另一个单个潜影盒，将来源潜影盒内容尽量转移到目标潜影盒。
-- 鼠标拿单个潜影盒，按住右键拖过多个普通物品槽位，逐个收纳物品；创造模式也允许发起。
+## 安全补丁
 
-## 安全边界
+- `PICKUP_INSERT` / `MOUSE_DRAG_PICKUP_INSERT` 现在要求目标槽是可普通取出、可安全缩减并可安全写回的真实槽位。
+- `TRANSFER` / `INSERT` 现在要求目标 shulker 所在槽本身就是可安全替换的真实槽位。
+- `EXTRACT` 现在要求目标空槽是可安全写入的真实槽位。
+- 合成 / 铁砧 / 切石机目前只放行输入槽，不放行结果槽。
+- `mouse dragged` 批量收纳功能仍保留，但现在只处理上述安全槽位，不处理特殊输出槽。
+- 这样做是为了避免绕过原版 `onTake`、输入消耗、经验结算或其他菜单副作用，降低复制、幽灵物品和错误写回风险。
 
-- 客户端仍只发送 action、`HostSlotRef` 和 cursor 副本，不把目标槽物品作为可信真值。
-- 服务端按当前真实 `player.containerMenu` 和 `HostSlotRef` 重新解析目标槽。
-- 当前 quick-open 宿主槽仍通过 `HostIdentity.sameSlot` 拒绝 bundling，避免写回当前宿主自身。
-- 从潜影盒放出物品到空槽时，服务端会校验目标槽可接受该物品。
-- 普通物品拖拽插入潜影盒即使被旧客户端发包，服务端也会拒绝。
+## 保留与未实现项
+
+- 已保留阶段 3 的 mouse dragged 批量收纳。
+- 未实现 mouse dragged 批量放出物品。
+- 未恢复 `rightClickClose`。
+- 未恢复 `reopen inventory`。
+- 未实现 Bundle 相关功能。
+- 未改 QuickShulker quick-open session 保存主链路。
 
 ## 修改文件
 
 - `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/ForgeHostSlotResolver.java`
-- `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/client/ForgeQuickShulkerClient.java`
 - `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/ForgeShulkerBundlingHandler.java`
 - `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/NeoForgeHostSlotResolver.java`
-- `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/client/NeoForgeQuickShulkerClient.java`
 - `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/NeoForgeShulkerBundlingHandler.java`
-- `docs/stage-3-mouse-dragged.md`
-- `docs/stage-1.0.0-p4-bundling-menu-slots.md`
+- `docs/stage-1.0.0-p3.1-bundling-menu-slots.md`
 
-## 验证命令与结果
+## 建议人工测试
 
-已执行：
+### Forge 1.20.1
 
-```powershell
-.\gradlew.bat compileJava
-```
+- 箱子 / 潜影盒 / 漏斗 / 发射器菜单中的普通存储槽仍可执行单次 bundling 与 mouse dragged 收纳。
+- 玩家背包合成输入槽、工作台输入槽、铁砧输入槽、切石机输入槽可执行 bundling。
+- 合成结果槽、熔炉结果槽、铁砧结果槽、交易结果槽、切石机结果槽不会触发 bundling。
+- 创造模式与生存模式下，对不安全菜单槽位重复右键 / 拖拽不会出现复制或幽灵物品。
 
-结果：
+### NeoForge 1.21.1
 
-- 通过。
-- `:common:compileJava` 为 up-to-date。
-- `:forge-1.20.1:compileJava` 通过。
-- `:neoforge-1.21.1:compileJava` 通过。
-- 编译输出仍有既有 deprecated API 提示，未发现本阶段新增编译错误。
-
-## 未验证内容
-
-- 未进行 Minecraft 客户端实机测试。
-- 未进行 Forge 1.20.1 / NeoForge 1.21.1 专用服务器多人测试。
-- 未验证所有原版容器和第三方容器的 Slot `mayPlace` 行为差异。
-- 未确认创造模式拖拽收纳在所有创造物品栏分页中的最终手感和同步表现。
+- 箱子 / 潜影盒 / 漏斗 / 发射器菜单中的普通存储槽仍可执行单次 bundling 与 mouse dragged 收纳。
+- 玩家背包合成输入槽、工作台输入槽、铁砧输入槽、切石机输入槽可执行 bundling。
+- 合成结果槽、熔炉结果槽、铁砧结果槽、交易结果槽、切石机结果槽不会触发 bundling。
+- 创造模式与生存模式下，对不安全菜单槽位重复右键 / 拖拽不会出现复制或幽灵物品。
 
 ## 待人工确认项
 
-- Forge 1.20.1 实机确认：QuickShulker 菜单、箱子/熔炉等原版容器、物品栏合成格均可触发单次右键 bundling。
-- NeoForge 1.21.1 实机确认：QuickShulker 菜单、箱子/熔炉等原版容器、物品栏合成格均可触发单次右键 bundling。
-- 双平台确认：普通物品右键拖过多个潜影盒不再逐个插入。
-- 双平台确认：拿单个潜影盒右键拖过多个普通物品槽位仍可收纳，且创造模式也可用。
-- 双平台多人服务器确认：目标槽被其他操作改变时不会写入错误槽位或产生幽灵物品。
-- 是否需要更新许可证 / NOTICE：本阶段未复制新的第三方大段代码，但仍建议维护者按发布流程确认。
+- 尚未进行 Minecraft 实机测试，未确认 Forge / NeoForge 两侧在所有原版菜单中的最终手感与事件取消表现。
+- 尚未进行多人服务器测试，未确认双平台在高频拖拽和菜单快速切换下的同步表现。
+- 当前对第三方容器槽位仍采用保守拒绝策略；是否需要后续为特定模组菜单逐个做安全兼容，待维护者决定。

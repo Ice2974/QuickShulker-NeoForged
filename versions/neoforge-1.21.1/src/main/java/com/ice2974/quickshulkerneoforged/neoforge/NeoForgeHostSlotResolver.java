@@ -6,8 +6,15 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.AnvilMenu;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.CraftingMenu;
+import net.minecraft.world.inventory.DispenserMenu;
+import net.minecraft.world.inventory.HopperMenu;
 import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.StonecutterMenu;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,20 +152,36 @@ public final class NeoForgeHostSlotResolver {
         if (menuSlotIndex < 0 || effectiveSlot.container == player.getInventory()) {
             return Optional.empty();
         }
-        return Optional.of(new HostSlotRef(
+        HostSlotRef slotRef = new HostSlotRef(
             HostStorageScope.PLAYER_CONTAINER_MENU,
             effectiveSlot.getContainerSlot(),
             menuSlotIndex
-        ));
+        );
+        return isSafeBundlingStorageSlot(player, slotRef) ? Optional.of(slotRef) : Optional.empty();
     }
 
-    public static boolean canPlace(Player player, HostSlotRef slotRef, ItemStack stack) {
-        if (slotRef.scope() == HostStorageScope.PLAYER_CONTAINER_MENU) {
-            return resolveMenuSlot(player.containerMenu, slotRef)
-                .map(slot -> slot.mayPlace(stack))
-                .orElse(false);
+    public static boolean canSafelyReadAndShrink(Player player, HostSlotRef slotRef) {
+        if (slotRef.scope() != HostStorageScope.PLAYER_CONTAINER_MENU) {
+            return isPlayerInventorySlotRef(slotRef);
         }
-        return isPlayerInventorySlotRef(slotRef);
+
+        return resolveMenuSlot(player.containerMenu, slotRef)
+            .map(slot -> isSafeBundlingMenuStorageSlot(player, player.containerMenu, slot))
+            .orElse(false);
+    }
+
+    public static boolean canSafelyReplace(Player player, HostSlotRef slotRef, ItemStack newStack) {
+        if (slotRef.scope() != HostStorageScope.PLAYER_CONTAINER_MENU) {
+            return isPlayerInventorySlotRef(slotRef);
+        }
+
+        return resolveMenuSlot(player.containerMenu, slotRef)
+            .map(slot -> isSafeBundlingMenuStorageSlot(player, player.containerMenu, slot) && canReplaceMenuSlot(slot, newStack))
+            .orElse(false);
+    }
+
+    public static boolean isSafeBundlingStorageSlot(Player player, HostSlotRef slotRef) {
+        return canSafelyReadAndShrink(player, slotRef);
     }
 
     private static Optional<Slot> resolveMenuSlot(AbstractContainerMenu menu, HostSlotRef slotRef) {
@@ -171,6 +194,69 @@ public final class NeoForgeHostSlotResolver {
             return Optional.empty();
         }
         return Optional.of(slot);
+    }
+
+    private static boolean isSafeBundlingMenuStorageSlot(Player player, AbstractContainerMenu menu, Slot slot) {
+        if (slot == null || slot.container == null || slot.container instanceof Inventory) {
+            return false;
+        }
+        if (!slot.mayPickup(player)) {
+            return false;
+        }
+
+        return switch (bundlingSlotKind(menu, slot)) {
+            case STORAGE, CRAFTING_INPUT, ANVIL_INPUT, STONECUTTER_INPUT -> true;
+            case UNSAFE -> false;
+        };
+    }
+
+    private static boolean canReplaceMenuSlot(Slot slot, ItemStack newStack) {
+        if (newStack.isEmpty()) {
+            return true;
+        }
+
+        ItemStack currentStack = slot.getItem();
+        return slot.mayPlace(newStack) || ItemStack.isSameItemSameComponents(currentStack, newStack);
+    }
+
+    private static boolean isSupportedBundlingMenu(AbstractContainerMenu menu) {
+        return menu instanceof ChestMenu
+            || menu instanceof ShulkerBoxMenu
+            || menu instanceof HopperMenu
+            || menu instanceof DispenserMenu
+            || menu instanceof InventoryMenu
+            || menu instanceof CraftingMenu
+            || menu instanceof AnvilMenu
+            || menu instanceof StonecutterMenu;
+    }
+
+    private static BundlingSlotKind bundlingSlotKind(AbstractContainerMenu menu, Slot slot) {
+        if (!isSupportedBundlingMenu(menu)) {
+            return BundlingSlotKind.UNSAFE;
+        }
+
+        int menuSlotIndex = slot.index;
+        if (menu instanceof InventoryMenu) {
+            return menuSlotIndex >= 1 && menuSlotIndex <= 4 ? BundlingSlotKind.CRAFTING_INPUT : BundlingSlotKind.UNSAFE;
+        }
+        if (menu instanceof CraftingMenu) {
+            return menuSlotIndex >= 1 && menuSlotIndex <= 9 ? BundlingSlotKind.CRAFTING_INPUT : BundlingSlotKind.UNSAFE;
+        }
+        if (menu instanceof AnvilMenu) {
+            return menuSlotIndex >= 0 && menuSlotIndex <= 1 ? BundlingSlotKind.ANVIL_INPUT : BundlingSlotKind.UNSAFE;
+        }
+        if (menu instanceof StonecutterMenu) {
+            return menuSlotIndex == 0 ? BundlingSlotKind.STONECUTTER_INPUT : BundlingSlotKind.UNSAFE;
+        }
+        return BundlingSlotKind.STORAGE;
+    }
+
+    private enum BundlingSlotKind {
+        STORAGE,
+        CRAFTING_INPUT,
+        ANVIL_INPUT,
+        STONECUTTER_INPUT,
+        UNSAFE
     }
 
     private static Slot unwrapSlot(Slot slot) {

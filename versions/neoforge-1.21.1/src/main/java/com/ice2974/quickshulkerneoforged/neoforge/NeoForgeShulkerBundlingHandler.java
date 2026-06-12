@@ -41,6 +41,10 @@ public final class NeoForgeShulkerBundlingHandler {
         if (isCurrentQuickOpenHost(player, intent)) {
             return;
         }
+        if (!NeoForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
+            LOGGER.debug("Rejected NeoForge bundling insert due to unsafe host slot: hostSlot={}", intent.hostSlot());
+            return;
+        }
 
         ItemStack carried = resolvedCarried(player, cursorStack);
         logCreativeResolvedCarried(player, intent, cursorStack, carried, "insert");
@@ -56,8 +60,13 @@ public final class NeoForgeShulkerBundlingHandler {
             LOGGER.debug("Rejected NeoForge bundling insert after helper validation: failure={}, detail={}", result.failure(), result.detail());
             return;
         }
+        ItemStack updatedHostStack = result.updatedContainerStack().orElseThrow().copy();
+        if (!NeoForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), updatedHostStack)) {
+            LOGGER.debug("Rejected NeoForge bundling insert due to unsafe host slot writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
 
-        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), result.updatedContainerStack().orElseThrow().copy());
+        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), updatedHostStack);
         player.containerMenu.setCarried(result.updatedInputStack().orElseThrow().copy());
         logCreativeSetCarried(player, intent, "insert");
         syncPlayerInventory(player);
@@ -69,6 +78,10 @@ public final class NeoForgeShulkerBundlingHandler {
             return;
         }
         if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
+        if (!NeoForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
+            LOGGER.debug("Rejected NeoForge pickup insert due to unsafe host slot: hostSlot={}", intent.hostSlot());
             return;
         }
 
@@ -90,10 +103,15 @@ public final class NeoForgeShulkerBundlingHandler {
             LOGGER.debug("Rejected NeoForge pickup insert after helper validation: failure={}, detail={}", result.failure(), result.detail());
             return;
         }
+        ItemStack updatedHostStack = result.updatedInputStack().orElseThrow().copy();
+        if (!NeoForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), updatedHostStack)) {
+            LOGGER.debug("Rejected NeoForge pickup insert due to unsafe host slot writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
 
         player.containerMenu.setCarried(result.updatedContainerStack().orElseThrow().copy());
         logCreativeSetCarried(player, intent, "pickup_insert");
-        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), result.updatedInputStack().orElseThrow().copy());
+        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), updatedHostStack);
         syncPlayerInventory(player);
         clearCreativeServerCarriedAfterSync(player, intent, "pickup_insert");
     }
@@ -142,8 +160,8 @@ public final class NeoForgeShulkerBundlingHandler {
         }
 
         ItemStack extractedStack = result.extractedStack().orElseThrow().copy();
-        if (!NeoForgeHostSlotResolver.canPlace(player, intent.hostSlot(), extractedStack)) {
-            LOGGER.debug("Rejected NeoForge extract because target slot cannot accept extracted stack: hostSlot={}", intent.hostSlot());
+        if (!NeoForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), extractedStack)) {
+            LOGGER.debug("Rejected NeoForge extract because target slot is unsafe for extracted stack writeback: hostSlot={}", intent.hostSlot());
             return;
         }
         if (!NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()).isEmpty()) {
@@ -163,6 +181,10 @@ public final class NeoForgeShulkerBundlingHandler {
             return;
         }
         if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
+        if (!NeoForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
+            LOGGER.debug("Rejected NeoForge transfer due to unsafe host slot: hostSlot={}", intent.hostSlot());
             return;
         }
         ItemStack targetShulker = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot());
@@ -186,13 +208,18 @@ public final class NeoForgeShulkerBundlingHandler {
             LOGGER.debug("Rejected NeoForge transfer after helper validation: failure={}, detail={}", result.failure(), result.detail());
             return;
         }
+        ItemStack updatedTargetStack = result.updatedTargetContainerStack().orElseThrow().copy();
+        if (!NeoForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), updatedTargetStack)) {
+            LOGGER.debug("Rejected NeoForge transfer due to unsafe host slot writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
 
         if (!isSingleShulkerBox(NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()))) {
             LOGGER.debug("Rejected NeoForge transfer because target slot changed before writeback: hostSlot={}", intent.hostSlot());
             return;
         }
 
-        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), result.updatedTargetContainerStack().orElseThrow().copy());
+        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), updatedTargetStack);
         player.containerMenu.setCarried(result.updatedSourceContainerStack().orElseThrow().copy());
         logCreativeSetCarried(player, intent, "transfer");
         syncPlayerInventory(player);
