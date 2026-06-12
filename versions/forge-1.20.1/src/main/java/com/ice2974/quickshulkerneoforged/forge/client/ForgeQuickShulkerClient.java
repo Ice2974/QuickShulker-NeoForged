@@ -54,11 +54,6 @@ public final class ForgeQuickShulkerClient {
 
         ForgeQuickOpenMouseRestore.onClientTick();
 
-        if (!hasAnyEnabledQuickOpenable()
-            || !ForgeQuickShulkerConfig.view().keybindInHand()) {
-            return;
-        }
-
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
         if (player == null) {
@@ -71,6 +66,11 @@ public final class ForgeQuickShulkerClient {
                 minecraft.setScreen(new ForgeQuickShulkerConfigScreen(null));
                 return;
             }
+        }
+
+        if (!hasAnyEnabledQuickOpenable()
+            || !ForgeQuickShulkerConfig.view().keybindInHand()) {
+            return;
         }
 
         if (minecraft.screen != null) {

@@ -50,11 +50,6 @@ public final class NeoForgeQuickShulkerClient {
     public static void onClientTick(ClientTickEvent.Post event) {
         NeoForgeQuickOpenMouseRestore.onClientTick();
 
-        if (!hasAnyEnabledQuickOpenable()
-            || !NeoForgeQuickShulkerConfig.view().keybindInHand()) {
-            return;
-        }
-
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
         if (player == null) {
@@ -67,6 +62,11 @@ public final class NeoForgeQuickShulkerClient {
                 minecraft.setScreen(new NeoForgeQuickShulkerConfigScreen(null));
                 return;
             }
+        }
+
+        if (!hasAnyEnabledQuickOpenable()
+            || !NeoForgeQuickShulkerConfig.view().keybindInHand()) {
+            return;
         }
 
         if (minecraft.screen != null) {
