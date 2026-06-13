@@ -1,6 +1,5 @@
 package com.ice2974.quickshulkerneoforged.common.bundling;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,22 +12,10 @@ public final class ShulkerBundlingRules {
         S inputStack,
         ShulkerBundlingStackAdapter<S> adapter
     ) {
-        List<S> contents = copyContents(originalContents, adapter);
         S inputCopy = adapter.copy(inputStack);
 
         if (adapter.isEmpty(inputCopy)) {
-            return new ShulkerBundlingResult<>(
-                false,
-                false,
-                ShulkerBundlingFailure.SOURCE_EMPTY,
-                0,
-                Optional.of(contents),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.of(inputCopy),
-                Optional.empty(),
-                "Cannot insert an empty stack into shulker contents."
-            );
+            return ContainerBundlingRules.insertIntoContents(originalContents, inputCopy, adapter);
         }
         if (adapter.isShulkerBox(inputCopy)) {
             return new ShulkerBundlingResult<>(
@@ -36,7 +23,7 @@ public final class ShulkerBundlingRules {
                 false,
                 ShulkerBundlingFailure.WOULD_NEST_SHULKER,
                 0,
-                Optional.of(contents),
+                Optional.of(ContainerBundlingRules.copyContents(originalContents, adapter)),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.of(inputCopy),
@@ -50,7 +37,7 @@ public final class ShulkerBundlingRules {
                 false,
                 ShulkerBundlingFailure.UNSUPPORTED_ITEM,
                 0,
-                Optional.of(contents),
+                Optional.of(ContainerBundlingRules.copyContents(originalContents, adapter)),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.of(inputCopy),
@@ -58,62 +45,7 @@ public final class ShulkerBundlingRules {
                 "The input stack is not accepted by shulker bundling rules."
             );
         }
-
-        int remaining = adapter.getCount(inputCopy);
-        for (int i = 0; i < contents.size() && remaining > 0; i++) {
-            S existing = contents.get(i);
-            if (adapter.isEmpty(existing) || !adapter.canStacksMerge(existing, inputCopy)) {
-                continue;
-            }
-            int limit = Math.min(adapter.getMaxStackSize(existing), adapter.getMaxStackSize(inputCopy));
-            int space = limit - adapter.getCount(existing);
-            if (space <= 0) {
-                continue;
-            }
-            int moved = Math.min(space, remaining);
-            contents.set(i, adapter.copyWithCount(existing, adapter.getCount(existing) + moved));
-            remaining -= moved;
-        }
-
-        for (int i = 0; i < contents.size() && remaining > 0; i++) {
-            S existing = contents.get(i);
-            if (!adapter.isEmpty(existing)) {
-                continue;
-            }
-            int moved = Math.min(adapter.getMaxStackSize(inputCopy), remaining);
-            contents.set(i, adapter.copyWithCount(inputCopy, moved));
-            remaining -= moved;
-        }
-
-        int movedCount = adapter.getCount(inputCopy) - remaining;
-        S updatedInput = remaining == 0 ? adapter.empty() : adapter.copyWithCount(inputCopy, remaining);
-        if (movedCount == 0) {
-            return new ShulkerBundlingResult<>(
-                false,
-                false,
-                ShulkerBundlingFailure.NO_SPACE,
-                0,
-                Optional.of(copyContents(originalContents, adapter)),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.of(inputCopy),
-                Optional.empty(),
-                "Shulker contents had no room for the input stack."
-            );
-        }
-
-        return new ShulkerBundlingResult<>(
-            true,
-            true,
-            ShulkerBundlingFailure.NONE,
-            movedCount,
-            Optional.of(contents),
-            Optional.empty(),
-            Optional.empty(),
-            Optional.of(updatedInput),
-            Optional.empty(),
-            "Inserted items into shulker contents."
-        );
+        return ContainerBundlingRules.insertIntoContents(originalContents, inputCopy, adapter);
     }
 
     // Stage 4A extracts the entire first non-empty slot stack to keep the writeback path explicit.
@@ -121,40 +53,7 @@ public final class ShulkerBundlingRules {
         List<S> originalContents,
         ShulkerBundlingStackAdapter<S> adapter
     ) {
-        List<S> contents = copyContents(originalContents, adapter);
-        for (int i = 0; i < contents.size(); i++) {
-            S existing = contents.get(i);
-            if (adapter.isEmpty(existing)) {
-                continue;
-            }
-            S extracted = adapter.copy(existing);
-            contents.set(i, adapter.empty());
-            return new ShulkerBundlingResult<>(
-                true,
-                true,
-                ShulkerBundlingFailure.NONE,
-                adapter.getCount(extracted),
-                Optional.of(contents),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.of(extracted),
-                "Extracted the first non-empty slot stack from shulker contents."
-            );
-        }
-
-        return new ShulkerBundlingResult<>(
-            false,
-            false,
-            ShulkerBundlingFailure.NO_ITEMS_TO_EXTRACT,
-            0,
-            Optional.of(contents),
-            Optional.empty(),
-            Optional.empty(),
-            Optional.empty(),
-            Optional.empty(),
-            "Shulker contents were empty."
-        );
+        return ContainerBundlingRules.extractFirstStack(originalContents, adapter);
     }
 
     // Mouse dragged extract follows the original tail-first slot scan order.
@@ -162,40 +61,7 @@ public final class ShulkerBundlingRules {
         List<S> originalContents,
         ShulkerBundlingStackAdapter<S> adapter
     ) {
-        List<S> contents = copyContents(originalContents, adapter);
-        for (int i = contents.size() - 1; i >= 0; i--) {
-            S existing = contents.get(i);
-            if (adapter.isEmpty(existing)) {
-                continue;
-            }
-            S extracted = adapter.copy(existing);
-            contents.set(i, adapter.empty());
-            return new ShulkerBundlingResult<>(
-                true,
-                true,
-                ShulkerBundlingFailure.NONE,
-                adapter.getCount(extracted),
-                Optional.of(contents),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.of(extracted),
-                "Extracted the last non-empty slot stack from shulker contents."
-            );
-        }
-
-        return new ShulkerBundlingResult<>(
-            false,
-            false,
-            ShulkerBundlingFailure.NO_ITEMS_TO_EXTRACT,
-            0,
-            Optional.of(contents),
-            Optional.empty(),
-            Optional.empty(),
-            Optional.empty(),
-            Optional.empty(),
-            "Shulker contents were empty."
-        );
+        return ContainerBundlingRules.extractLastStack(originalContents, adapter);
     }
 
     public static <S> ShulkerBundlingResult<List<S>, S> transferContents(
@@ -203,8 +69,8 @@ public final class ShulkerBundlingRules {
         List<S> originalTargetContents,
         ShulkerBundlingStackAdapter<S> adapter
     ) {
-        List<S> sourceContents = copyContents(originalSourceContents, adapter);
-        List<S> targetContents = copyContents(originalTargetContents, adapter);
+        List<S> sourceContents = ContainerBundlingRules.copyContents(originalSourceContents, adapter);
+        List<S> targetContents = ContainerBundlingRules.copyContents(originalTargetContents, adapter);
 
         ShulkerBundlingFailure blockedReason = ShulkerBundlingFailure.NO_ITEMS_TO_EXTRACT;
         boolean sawTransferableItem = false;
@@ -237,7 +103,7 @@ public final class ShulkerBundlingRules {
                 continue;
             }
 
-            targetContents = copyContents(slotResult.updatedContainerStack().orElseThrow(), adapter);
+            targetContents = ContainerBundlingRules.copyContents(slotResult.updatedContainerStack().orElseThrow(), adapter);
             S remainingSource = slotResult.updatedInputStack().orElseGet(adapter::empty);
             sourceContents.set(i, adapter.copy(remainingSource));
             movedCount += slotResult.movedCount();
@@ -275,11 +141,4 @@ public final class ShulkerBundlingRules {
         );
     }
 
-    private static <S> List<S> copyContents(List<S> contents, ShulkerBundlingStackAdapter<S> adapter) {
-        List<S> copies = new ArrayList<>(contents.size());
-        for (S content : contents) {
-            copies.add(adapter.copy(content));
-        }
-        return copies;
-    }
 }
