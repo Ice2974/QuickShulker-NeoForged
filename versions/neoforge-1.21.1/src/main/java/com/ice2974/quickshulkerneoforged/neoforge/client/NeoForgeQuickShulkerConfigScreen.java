@@ -24,6 +24,7 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
     private static final int ROW_HEIGHT = 24;
     private static final int COLUMN_GAP = 12;
     private static final int SECTION_GAP = 8;
+    private static final int PAGE_CONTENT_TOP = 78;
     private static final int BOTTOM_MARGIN = 28;
     private static final Component TITLE = Component.translatable("screen.quickshulker_neoforged.config.title");
     private static final Component CAPTURE_HINT = Component.translatable("screen.quickshulker_neoforged.config.capture_hint");
@@ -39,6 +40,10 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
     private boolean supportsBundlingTransfer;
     private boolean supportsBundlingExtract;
     private boolean supportsMouseDragged;
+    private boolean enderChestBundlingInsert;
+    private boolean enderChestBundlingPickup;
+    private boolean enderChestBundlingExtract;
+    private boolean enderChestMouseDragged;
     private boolean openSettingsKeyEnabled;
     private boolean quickShulkerBox;
     private boolean quickCraftingTables;
@@ -139,7 +144,7 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
     }
 
     private void initActivationPage(int left, int right) {
-        int top = 78;
+        int top = PAGE_CONTENT_TOP;
 
         activationKeyButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
             capturingTarget = KeyTarget.ACTIVATION;
@@ -163,7 +168,7 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
     }
 
     private void initQuickOpenPage(int left, int right) {
-        int top = 96;
+        int top = PAGE_CONTENT_TOP;
 
         addToggle(left, top, "config.quickshulker_neoforged.quick_shulker_box", quickShulkerBox, value -> quickShulkerBox = value);
         addToggle(right, top, "config.quickshulker_neoforged.quick_crafting_table", quickCraftingTables, value -> quickCraftingTables = value);
@@ -175,13 +180,19 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
     }
 
     private void initBundlingPage(int left, int right) {
-        int top = 96;
+        int top = PAGE_CONTENT_TOP;
 
         addToggle(left, top, "config.quickshulker_neoforged.supports_bundling_insert", supportsBundlingInsert, value -> supportsBundlingInsert = value);
-        addToggle(right, top, "config.quickshulker_neoforged.supports_bundling_pickup", supportsBundlingPickup, value -> supportsBundlingPickup = value);
+        addToggle(right, top, "config.quickshulker_neoforged.ender_chest_bundling_insert", enderChestBundlingInsert, value -> enderChestBundlingInsert = value);
+        top += ROW_HEIGHT;
+        addToggle(left, top, "config.quickshulker_neoforged.supports_bundling_pickup", supportsBundlingPickup, value -> supportsBundlingPickup = value);
+        addToggle(right, top, "config.quickshulker_neoforged.ender_chest_bundling_pickup", enderChestBundlingPickup, value -> enderChestBundlingPickup = value);
         top += ROW_HEIGHT;
         addToggle(left, top, "config.quickshulker_neoforged.supports_bundling_transfer", supportsBundlingTransfer, value -> supportsBundlingTransfer = value);
-        addToggle(right, top, "config.quickshulker_neoforged.supports_bundling_extract", supportsBundlingExtract, value -> supportsBundlingExtract = value);
+        addToggle(right, top, "config.quickshulker_neoforged.ender_chest_bundling_extract", enderChestBundlingExtract, value -> enderChestBundlingExtract = value);
+        top += ROW_HEIGHT;
+        addToggle(left, top, "config.quickshulker_neoforged.supports_bundling_extract", supportsBundlingExtract, value -> supportsBundlingExtract = value);
+        addToggle(right, top, "config.quickshulker_neoforged.ender_chest_mouse_dragged", enderChestMouseDragged, value -> enderChestMouseDragged = value);
         top += ROW_HEIGHT;
         addToggle(left, top, "config.quickshulker_neoforged.supports_mouse_dragged", supportsMouseDragged, value -> supportsMouseDragged = value);
     }
@@ -210,6 +221,10 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
             supportsBundlingTransfer,
             supportsBundlingExtract,
             supportsMouseDragged,
+            enderChestBundlingInsert,
+            enderChestBundlingPickup,
+            enderChestBundlingExtract,
+            enderChestMouseDragged,
             openSettingsKeyEnabled,
             quickShulkerBox,
             quickCraftingTables,
@@ -233,6 +248,10 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
         supportsBundlingTransfer = config.supportsBundlingTransfer();
         supportsBundlingExtract = config.supportsBundlingExtract();
         supportsMouseDragged = config.supportsMouseDragged();
+        enderChestBundlingInsert = config.enderChestBundlingInsert();
+        enderChestBundlingPickup = config.enderChestBundlingPickup();
+        enderChestBundlingExtract = config.enderChestBundlingExtract();
+        enderChestMouseDragged = config.enderChestMouseDragged();
         openSettingsKeyEnabled = config.openSettingsKeyEnabled();
         quickShulkerBox = config.quickShulkerBox();
         quickCraftingTables = config.quickCraftingTables();

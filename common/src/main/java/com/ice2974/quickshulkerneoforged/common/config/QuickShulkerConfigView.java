@@ -27,6 +27,14 @@ public interface QuickShulkerConfigView {
 
     boolean supportsMouseDragged();
 
+    boolean enderChestBundlingInsert();
+
+    boolean enderChestBundlingPickup();
+
+    boolean enderChestBundlingExtract();
+
+    boolean enderChestMouseDragged();
+
     boolean openSettingsKeyEnabled();
 
     boolean quickShulkerBox();

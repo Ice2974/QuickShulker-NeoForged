@@ -1,5 +1,7 @@
 # stage-1.0.0-p6.1-ender-chest-drag-config-gate-fix
 
+> 历史更新：阶段 6.3 已新增独立的末影箱收纳配置项。本文中 `quickEnderChest()` 同时控制末影箱 quick-open 与末影箱 bundling 的描述只代表阶段 6.1 当时状态；当前末影箱收纳以 `enderChestBundlingInsert`、`enderChestBundlingPickup`、`enderChestBundlingExtract`、`enderChestMouseDragged` 为准，`quickEnderChest` 只保留在 Quick Open 页面。
+
 本阶段修复末影箱 mouse dragged 续包在服务端可能绕过 `quickEnderChest()` 开关的问题。
 
 ## 背景

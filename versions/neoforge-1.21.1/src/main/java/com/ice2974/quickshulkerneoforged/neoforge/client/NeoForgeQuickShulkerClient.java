@@ -383,7 +383,7 @@ public final class NeoForgeQuickShulkerClient {
     private static void beginMouseDrag(Player player, ShulkerBundlingIntent intent) {
         dragMode = DragMode.NONE;
         DRAGGED_HOST_SLOTS.clear();
-        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+        if (currentDragId == 0L || dragContainerId < 0) {
             currentDragId = 0L;
             dragContainerId = -1;
             return;
@@ -394,10 +394,10 @@ public final class NeoForgeQuickShulkerClient {
             && NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             dragMode = DragMode.EXTRACT_FROM_CARRIED_SHULKER;
         } else if (intent.action() == ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT
-            && NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
+            && NeoForgeQuickShulkerConfig.view().enderChestBundlingPickup()) {
             dragMode = DragMode.PICKUP_INTO_CARRIED_ENDER_CHEST;
         } else if (intent.action() == ShulkerBundlingAction.ENDER_CHEST_EXTRACT
-            && NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
+            && NeoForgeQuickShulkerConfig.view().enderChestBundlingExtract()) {
             dragMode = DragMode.EXTRACT_FROM_CARRIED_ENDER_CHEST;
         } else {
             currentDragId = 0L;
@@ -411,7 +411,7 @@ public final class NeoForgeQuickShulkerClient {
         if (dragMode == DragMode.NONE) {
             return false;
         }
-        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+        if (!supportsCurrentMouseDraggedMode()) {
             clearMouseDrag();
             return false;
         }
@@ -458,13 +458,13 @@ public final class NeoForgeQuickShulkerClient {
             && isSingleShulkerBox(carried)) {
             action = ShulkerBundlingAction.MOUSE_DRAG_EXTRACT;
         } else if (dragMode == DragMode.PICKUP_INTO_CARRIED_ENDER_CHEST
-            && NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()
+            && NeoForgeQuickShulkerConfig.view().enderChestBundlingPickup()
             && isSingleEnderChest(carried)
             && !hoveredStack.isEmpty()
             && canInsertIntoEnderChest(hoveredStack)) {
             action = ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT;
         } else if (dragMode == DragMode.EXTRACT_FROM_CARRIED_ENDER_CHEST
-            && NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()
+            && NeoForgeQuickShulkerConfig.view().enderChestBundlingExtract()
             && hoveredStack.isEmpty()
             && isSingleEnderChest(carried)) {
             action = ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_EXTRACT;
@@ -515,7 +515,7 @@ public final class NeoForgeQuickShulkerClient {
     ) {
         int containerId = containerScreen.getMenu().containerId;
         boolean canDragEnderChest = isEnderChestBundlingAction(intent.action())
-            && NeoForgeQuickShulkerConfig.view().supportsMouseDragged()
+            && NeoForgeQuickShulkerConfig.view().enderChestMouseDragged()
             && (intent.action() == ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT
                 || intent.action() == ShulkerBundlingAction.ENDER_CHEST_EXTRACT);
         if (isEnderChestBundlingAction(intent.action()) && !canDragEnderChest) {
@@ -662,30 +662,37 @@ public final class NeoForgeQuickShulkerClient {
         ItemStack hoveredStack,
         HostSlotRef hostSlot
     ) {
-        if (!NeoForgeQuickShulkerConfig.view().quickEnderChest()) {
-            return Optional.empty();
-        }
         if (isCarriedEnderChestHoveringEnderChest(carried, hoveredStack)) {
             return Optional.empty();
         }
-        if (NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()
+        if (NeoForgeQuickShulkerConfig.view().enderChestBundlingExtract()
             && hoveredStack.isEmpty()
             && isSingleEnderChest(carried)) {
             return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.ENDER_CHEST_EXTRACT, hostSlot));
         }
-        if (NeoForgeQuickShulkerConfig.view().supportsBundlingInsert()
+        if (NeoForgeQuickShulkerConfig.view().enderChestBundlingInsert()
             && isSingleEnderChest(hoveredStack)
             && !carried.isEmpty()
             && canInsertIntoEnderChest(carried)) {
             return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.ENDER_CHEST_INSERT, hostSlot));
         }
-        if (NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()
+        if (NeoForgeQuickShulkerConfig.view().enderChestBundlingPickup()
             && isSingleEnderChest(carried)
             && !hoveredStack.isEmpty()
             && canInsertIntoEnderChest(hoveredStack)) {
             return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT, hostSlot));
         }
         return Optional.empty();
+    }
+
+    private static boolean supportsCurrentMouseDraggedMode() {
+        return switch (dragMode) {
+            case PICKUP_INTO_CARRIED_SHULKER, EXTRACT_FROM_CARRIED_SHULKER ->
+                NeoForgeQuickShulkerConfig.view().supportsMouseDragged();
+            case PICKUP_INTO_CARRIED_ENDER_CHEST, EXTRACT_FROM_CARRIED_ENDER_CHEST ->
+                NeoForgeQuickShulkerConfig.view().enderChestMouseDragged();
+            case NONE -> false;
+        };
     }
 
     private static boolean isEnderChestBundlingAction(ShulkerBundlingAction action) {

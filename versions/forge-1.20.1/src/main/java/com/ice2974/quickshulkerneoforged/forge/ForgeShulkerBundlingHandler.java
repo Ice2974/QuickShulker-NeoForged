@@ -403,14 +403,17 @@ public final class ForgeShulkerBundlingHandler {
     }
 
     private static boolean supportsEnderChestBundling() {
-        return ForgeQuickShulkerConfig.view().quickEnderChest();
+        return ForgeQuickShulkerConfig.view().enderChestBundlingInsert()
+            || ForgeQuickShulkerConfig.view().enderChestBundlingPickup()
+            || ForgeQuickShulkerConfig.view().enderChestBundlingExtract()
+            || ForgeQuickShulkerConfig.view().enderChestMouseDragged();
     }
 
     private static void handleEnderChestInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
         if (!supportsEnderChestBundling()) {
             return;
         }
-        if (!ForgeQuickShulkerConfig.view().supportsBundlingInsert()) {
+        if (!ForgeQuickShulkerConfig.view().enderChestBundlingInsert()) {
             return;
         }
         if (!ForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
@@ -455,7 +458,7 @@ public final class ForgeShulkerBundlingHandler {
     }
 
     private static void handleEnderChestPickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
-        handleEnderChestPickupInsert(player, intent, cursorStack, null);
+        handleEnderChestPickupInsert(player, intent, cursorStack, null, true);
     }
 
     private static void handleMouseDragEnderChestPickupInsert(
@@ -464,7 +467,7 @@ public final class ForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
-        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+        if (!ForgeQuickShulkerConfig.view().enderChestMouseDragged()) {
             return;
         }
         handleEnderChestPickupInsert(player, new ShulkerBundlingIntent(
@@ -472,7 +475,7 @@ public final class ForgeShulkerBundlingHandler {
             intent.hostSlot(),
             intent.containerId(),
             intent.dragId()
-        ), cursorStack, dragSession);
+        ), cursorStack, dragSession, false);
     }
 
     private static void handleEnderChestPickupInsert(
@@ -481,10 +484,20 @@ public final class ForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
+        handleEnderChestPickupInsert(player, intent, cursorStack, dragSession, true);
+    }
+
+    private static void handleEnderChestPickupInsert(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        DragSession dragSession,
+        boolean requireActionConfig
+    ) {
         if (!supportsEnderChestBundling()) {
             return;
         }
-        if (!ForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
+        if (requireActionConfig && !ForgeQuickShulkerConfig.view().enderChestBundlingPickup()) {
             return;
         }
         if (!ForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
@@ -535,7 +548,7 @@ public final class ForgeShulkerBundlingHandler {
     }
 
     private static void handleEnderChestExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
-        handleEnderChestExtract(player, intent, cursorStack, null);
+        handleEnderChestExtract(player, intent, cursorStack, null, true);
     }
 
     private static void handleMouseDragEnderChestExtract(
@@ -544,7 +557,7 @@ public final class ForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
-        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+        if (!ForgeQuickShulkerConfig.view().enderChestMouseDragged()) {
             return;
         }
         handleEnderChestExtract(player, new ShulkerBundlingIntent(
@@ -552,7 +565,7 @@ public final class ForgeShulkerBundlingHandler {
             intent.hostSlot(),
             intent.containerId(),
             intent.dragId()
-        ), cursorStack, dragSession);
+        ), cursorStack, dragSession, false);
     }
 
     private static void handleEnderChestExtract(
@@ -561,10 +574,20 @@ public final class ForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
+        handleEnderChestExtract(player, intent, cursorStack, dragSession, true);
+    }
+
+    private static void handleEnderChestExtract(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        DragSession dragSession,
+        boolean requireActionConfig
+    ) {
         if (!supportsEnderChestBundling()) {
             return;
         }
-        if (!ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
+        if (requireActionConfig && !ForgeQuickShulkerConfig.view().enderChestBundlingExtract()) {
             return;
         }
         ItemStack targetStack = ForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();

@@ -379,14 +379,17 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static boolean supportsEnderChestBundling() {
-        return NeoForgeQuickShulkerConfig.view().quickEnderChest();
+        return NeoForgeQuickShulkerConfig.view().enderChestBundlingInsert()
+            || NeoForgeQuickShulkerConfig.view().enderChestBundlingPickup()
+            || NeoForgeQuickShulkerConfig.view().enderChestBundlingExtract()
+            || NeoForgeQuickShulkerConfig.view().enderChestMouseDragged();
     }
 
     private static void handleEnderChestInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
         if (!supportsEnderChestBundling()) {
             return;
         }
-        if (!NeoForgeQuickShulkerConfig.view().supportsBundlingInsert()) {
+        if (!NeoForgeQuickShulkerConfig.view().enderChestBundlingInsert()) {
             return;
         }
         if (!NeoForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
@@ -431,7 +434,7 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static void handleEnderChestPickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
-        handleEnderChestPickupInsert(player, intent, cursorStack, null);
+        handleEnderChestPickupInsert(player, intent, cursorStack, null, true);
     }
 
     private static void handleMouseDragEnderChestPickupInsert(
@@ -440,7 +443,7 @@ public final class NeoForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
-        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+        if (!NeoForgeQuickShulkerConfig.view().enderChestMouseDragged()) {
             return;
         }
         handleEnderChestPickupInsert(player, new ShulkerBundlingIntent(
@@ -448,7 +451,7 @@ public final class NeoForgeShulkerBundlingHandler {
             intent.hostSlot(),
             intent.containerId(),
             intent.dragId()
-        ), cursorStack, dragSession);
+        ), cursorStack, dragSession, false);
     }
 
     private static void handleEnderChestPickupInsert(
@@ -457,10 +460,20 @@ public final class NeoForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
+        handleEnderChestPickupInsert(player, intent, cursorStack, dragSession, true);
+    }
+
+    private static void handleEnderChestPickupInsert(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        DragSession dragSession,
+        boolean requireActionConfig
+    ) {
         if (!supportsEnderChestBundling()) {
             return;
         }
-        if (!NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
+        if (requireActionConfig && !NeoForgeQuickShulkerConfig.view().enderChestBundlingPickup()) {
             return;
         }
         if (!NeoForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
@@ -511,7 +524,7 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static void handleEnderChestExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
-        handleEnderChestExtract(player, intent, cursorStack, null);
+        handleEnderChestExtract(player, intent, cursorStack, null, true);
     }
 
     private static void handleMouseDragEnderChestExtract(
@@ -520,7 +533,7 @@ public final class NeoForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
-        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+        if (!NeoForgeQuickShulkerConfig.view().enderChestMouseDragged()) {
             return;
         }
         handleEnderChestExtract(player, new ShulkerBundlingIntent(
@@ -528,7 +541,7 @@ public final class NeoForgeShulkerBundlingHandler {
             intent.hostSlot(),
             intent.containerId(),
             intent.dragId()
-        ), cursorStack, dragSession);
+        ), cursorStack, dragSession, false);
     }
 
     private static void handleEnderChestExtract(
@@ -537,10 +550,20 @@ public final class NeoForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
+        handleEnderChestExtract(player, intent, cursorStack, dragSession, true);
+    }
+
+    private static void handleEnderChestExtract(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        DragSession dragSession,
+        boolean requireActionConfig
+    ) {
         if (!supportsEnderChestBundling()) {
             return;
         }
-        if (!NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
+        if (requireActionConfig && !NeoForgeQuickShulkerConfig.view().enderChestBundlingExtract()) {
             return;
         }
         ItemStack targetStack = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();

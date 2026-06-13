@@ -18,6 +18,10 @@ public final class ForgeQuickShulkerConfig {
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_BUNDLING_TRANSFER;
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_BUNDLING_EXTRACT;
     private static final ForgeConfigSpec.BooleanValue SUPPORTS_MOUSE_DRAGGED;
+    private static final ForgeConfigSpec.BooleanValue ENDER_CHEST_BUNDLING_INSERT;
+    private static final ForgeConfigSpec.BooleanValue ENDER_CHEST_BUNDLING_PICKUP;
+    private static final ForgeConfigSpec.BooleanValue ENDER_CHEST_BUNDLING_EXTRACT;
+    private static final ForgeConfigSpec.BooleanValue ENDER_CHEST_MOUSE_DRAGGED;
     private static final ForgeConfigSpec.BooleanValue OPEN_SETTINGS_KEY_ENABLED;
     private static final ForgeConfigSpec.BooleanValue QUICK_SHULKER_BOX;
     private static final ForgeConfigSpec.BooleanValue QUICK_CRAFTING_TABLE;
@@ -54,20 +58,32 @@ public final class ForgeQuickShulkerConfig {
 
         builder.push("interaction");
         SUPPORTS_BUNDLING_INSERT = builder
-            .comment("Allow right clicking a player-inventory shulker box with a carried item to insert the carried item.")
+            .comment("Allow inserting carried items into shulker boxes.")
             .define("supportsBundlingInsert", DEFAULTS.supportsBundlingInsert());
         SUPPORTS_BUNDLING_PICKUP = builder
-            .comment("Allow right clicking a player-inventory item with a carried shulker box to insert the hovered item.")
+            .comment("Allow picking hovered items into carried shulker boxes.")
             .define("supportsBundlingPickup", DEFAULTS.supportsBundlingPickup());
         SUPPORTS_BUNDLING_TRANSFER = builder
-            .comment("Reserved for a future shulker interaction where right clicking a shulker box with another shulker box transfers items.")
+            .comment("Allow transferring between shulker boxes.")
             .define("supportsBundlingTransfer", DEFAULTS.supportsBundlingTransfer());
         SUPPORTS_BUNDLING_EXTRACT = builder
-            .comment("Reserved for a future shulker interaction where right clicking an empty slot with a shulker box extracts an item.")
+            .comment("Allow extracting items from shulker boxes.")
             .define("supportsBundlingExtract", DEFAULTS.supportsBundlingExtract());
         SUPPORTS_MOUSE_DRAGGED = builder
-            .comment("Allow mouse dragged batch interactions for shulker boxes only. Bundle and ender chest bundling are not affected.")
+            .comment("Allow shulker box mouse-drag batch interactions.")
             .define("supportsMouseDragged", DEFAULTS.supportsMouseDragged());
+        ENDER_CHEST_BUNDLING_INSERT = builder
+            .comment("Allow inserting carried items into ender chests.")
+            .define("enderChestBundlingInsert", DEFAULTS.enderChestBundlingInsert());
+        ENDER_CHEST_BUNDLING_PICKUP = builder
+            .comment("Allow picking hovered items into carried ender chests.")
+            .define("enderChestBundlingPickup", DEFAULTS.enderChestBundlingPickup());
+        ENDER_CHEST_BUNDLING_EXTRACT = builder
+            .comment("Allow extracting items from carried ender chests.")
+            .define("enderChestBundlingExtract", DEFAULTS.enderChestBundlingExtract());
+        ENDER_CHEST_MOUSE_DRAGGED = builder
+            .comment("Allow ender chest mouse-drag batch interactions.")
+            .define("enderChestMouseDragged", DEFAULTS.enderChestMouseDragged());
         builder.pop();
 
         builder.push("quickOpenables");
@@ -117,6 +133,10 @@ public final class ForgeQuickShulkerConfig {
             SUPPORTS_BUNDLING_TRANSFER.get(),
             SUPPORTS_BUNDLING_EXTRACT.get(),
             SUPPORTS_MOUSE_DRAGGED.get(),
+            ENDER_CHEST_BUNDLING_INSERT.get(),
+            ENDER_CHEST_BUNDLING_PICKUP.get(),
+            ENDER_CHEST_BUNDLING_EXTRACT.get(),
+            ENDER_CHEST_MOUSE_DRAGGED.get(),
             OPEN_SETTINGS_KEY_ENABLED.get(),
             QUICK_SHULKER_BOX.get(),
             QUICK_CRAFTING_TABLE.get(),
@@ -138,6 +158,10 @@ public final class ForgeQuickShulkerConfig {
         SUPPORTS_BUNDLING_TRANSFER.set(config.supportsBundlingTransfer());
         SUPPORTS_BUNDLING_EXTRACT.set(config.supportsBundlingExtract());
         SUPPORTS_MOUSE_DRAGGED.set(config.supportsMouseDragged());
+        ENDER_CHEST_BUNDLING_INSERT.set(config.enderChestBundlingInsert());
+        ENDER_CHEST_BUNDLING_PICKUP.set(config.enderChestBundlingPickup());
+        ENDER_CHEST_BUNDLING_EXTRACT.set(config.enderChestBundlingExtract());
+        ENDER_CHEST_MOUSE_DRAGGED.set(config.enderChestMouseDragged());
         OPEN_SETTINGS_KEY_ENABLED.set(config.openSettingsKeyEnabled());
         QUICK_SHULKER_BOX.set(config.quickShulkerBox());
         QUICK_CRAFTING_TABLE.set(config.quickCraftingTables());
@@ -205,6 +229,26 @@ public final class ForgeQuickShulkerConfig {
         @Override
         public boolean supportsMouseDragged() {
             return SUPPORTS_MOUSE_DRAGGED.get();
+        }
+
+        @Override
+        public boolean enderChestBundlingInsert() {
+            return ENDER_CHEST_BUNDLING_INSERT.get();
+        }
+
+        @Override
+        public boolean enderChestBundlingPickup() {
+            return ENDER_CHEST_BUNDLING_PICKUP.get();
+        }
+
+        @Override
+        public boolean enderChestBundlingExtract() {
+            return ENDER_CHEST_BUNDLING_EXTRACT.get();
+        }
+
+        @Override
+        public boolean enderChestMouseDragged() {
+            return ENDER_CHEST_MOUSE_DRAGGED.get();
         }
 
         @Override
