@@ -32,6 +32,7 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +69,10 @@ public final class ForgeQuickShulkerClient {
         if (player == null) {
             clearMouseDrag();
             return;
+        }
+        if (minecraft.screen == null && (suppressNextInventoryRightRelease || suppressBundlingMousePressedUntilRelease)) {
+            clearMouseDrag();
+            suppressNextInventoryRightRelease = false;
         }
         if (dragMode != DragMode.NONE
             && (!(minecraft.screen instanceof AbstractContainerScreen<?> containerScreen)
@@ -131,12 +136,20 @@ public final class ForgeQuickShulkerClient {
     public static void onScreenMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
-        if (player == null || event.getButton() != 1) {
+        if (player == null) {
             return;
         }
 
         if (suppressBundlingMousePressedUntilRelease) {
             event.setCanceled(true);
+            return;
+        }
+        if (event.getButton() != 1) {
+            return;
+        }
+        if (isMouseButtonDown(minecraft, GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+            clearMouseDrag();
+            suppressNextInventoryRightRelease = false;
             return;
         }
 
@@ -159,6 +172,7 @@ public final class ForgeQuickShulkerClient {
         }
 
         if (trySendHovered(player, event.getScreen(), QuickOpenTrigger.INVENTORY_RIGHT_CLICK)) {
+            suppressBundlingMousePressedUntilRelease = true;
             suppressNextInventoryRightRelease = true;
             event.setCanceled(true);
         }
@@ -166,10 +180,19 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenMouseDragged(ScreenEvent.MouseDragged.Pre event) {
+        if (suppressBundlingMousePressedUntilRelease && event.getMouseButton() != 1) {
+            event.setCanceled(true);
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
         if (player == null || event.getMouseButton() != 1) {
             clearMouseDrag();
+            return;
+        }
+        if (isMouseButtonDown(minecraft, GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+            clearMouseDrag();
+            event.setCanceled(true);
             return;
         }
 
@@ -180,6 +203,10 @@ public final class ForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenMouseReleased(ScreenEvent.MouseButtonReleased.Pre event) {
+        if (event.getButton() == 0 && suppressBundlingMousePressedUntilRelease) {
+            event.setCanceled(true);
+            return;
+        }
         if (event.getButton() == 1) {
             clearMouseDrag();
         }
@@ -581,6 +608,11 @@ public final class ForgeQuickShulkerClient {
 
     private static boolean isShulkerBox(ItemStack stack) {
         return !stack.isEmpty() && Block.byItem(stack.getItem()) instanceof ShulkerBoxBlock;
+    }
+
+    private static boolean isMouseButtonDown(Minecraft minecraft, int button) {
+        long window = minecraft.getWindow().getWindow();
+        return window != 0L && GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS;
     }
 
     private static String describeStack(ItemStack stack) {

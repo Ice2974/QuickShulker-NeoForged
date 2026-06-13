@@ -32,6 +32,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +46,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class NeoForgeQuickShulkerClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(NeoForgeQuickShulkerClient.class);
     private static boolean suppressNextInventoryRightRelease;
+    private static boolean suppressBundlingMousePressedUntilRelease;
     private static DragMode dragMode = DragMode.NONE;
     private static final Set<HostSlotRef> DRAGGED_HOST_SLOTS = new HashSet<>();
     private static long currentDragId;
@@ -63,6 +65,10 @@ public final class NeoForgeQuickShulkerClient {
         if (player == null) {
             clearMouseDrag();
             return;
+        }
+        if (minecraft.screen == null && (suppressNextInventoryRightRelease || suppressBundlingMousePressedUntilRelease)) {
+            clearMouseDrag();
+            suppressNextInventoryRightRelease = false;
         }
         if (dragMode != DragMode.NONE
             && (!(minecraft.screen instanceof AbstractContainerScreen<?> containerScreen)
@@ -127,7 +133,19 @@ public final class NeoForgeQuickShulkerClient {
     public static void onScreenMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
-        if (player == null || event.getButton() != 1) {
+        if (player == null) {
+            return;
+        }
+        if (suppressBundlingMousePressedUntilRelease) {
+            event.setCanceled(true);
+            return;
+        }
+        if (event.getButton() != 1) {
+            return;
+        }
+        if (isMouseButtonDown(minecraft, GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+            clearMouseDrag();
+            suppressNextInventoryRightRelease = false;
             return;
         }
 
@@ -137,6 +155,7 @@ public final class NeoForgeQuickShulkerClient {
             ShulkerBundlingIntent preparedIntent = prepareBundlingIntent(containerScreen, bundlingIntent.get());
             sendBundlingIntent(containerScreen, preparedIntent);
             beginMouseDrag(player, preparedIntent);
+            suppressBundlingMousePressedUntilRelease = true;
             suppressNextInventoryRightRelease = true;
             event.setCanceled(true);
             return;
@@ -149,6 +168,7 @@ public final class NeoForgeQuickShulkerClient {
         }
 
         if (trySendHovered(player, event.getScreen(), QuickOpenTrigger.INVENTORY_RIGHT_CLICK)) {
+            suppressBundlingMousePressedUntilRelease = true;
             suppressNextInventoryRightRelease = true;
             event.setCanceled(true);
         }
@@ -156,10 +176,19 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenMouseDragged(ScreenEvent.MouseDragged.Pre event) {
+        if (suppressBundlingMousePressedUntilRelease && event.getMouseButton() != 1) {
+            event.setCanceled(true);
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
         if (player == null || event.getMouseButton() != 1) {
             clearMouseDrag();
+            return;
+        }
+        if (isMouseButtonDown(minecraft, GLFW.GLFW_MOUSE_BUTTON_LEFT)) {
+            clearMouseDrag();
+            event.setCanceled(true);
             return;
         }
 
@@ -170,6 +199,10 @@ public final class NeoForgeQuickShulkerClient {
 
     @SubscribeEvent
     public static void onScreenMouseReleased(ScreenEvent.MouseButtonReleased.Pre event) {
+        if (event.getButton() == 0 && suppressBundlingMousePressedUntilRelease) {
+            event.setCanceled(true);
+            return;
+        }
         if (event.getButton() == 1) {
             clearMouseDrag();
         }
@@ -184,6 +217,7 @@ public final class NeoForgeQuickShulkerClient {
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         suppressNextInventoryRightRelease = false;
+        suppressBundlingMousePressedUntilRelease = false;
         clearMouseDrag();
         NeoForgeQuickOpenMouseRestore.onScreenInit(event.getScreen());
     }
@@ -418,6 +452,7 @@ public final class NeoForgeQuickShulkerClient {
 
     private static void clearMouseDrag() {
         sendEndMouseDrag();
+        suppressBundlingMousePressedUntilRelease = false;
         dragMode = DragMode.NONE;
         DRAGGED_HOST_SLOTS.clear();
         currentDragId = 0L;
@@ -581,6 +616,11 @@ public final class NeoForgeQuickShulkerClient {
 
     private static boolean isShulkerBox(ItemStack stack) {
         return !stack.isEmpty() && Block.byItem(stack.getItem()) instanceof ShulkerBoxBlock;
+    }
+
+    private static boolean isMouseButtonDown(Minecraft minecraft, int button) {
+        long window = minecraft.getWindow().getWindow();
+        return window != 0L && GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS;
     }
 
     private static String describeStack(ItemStack stack) {

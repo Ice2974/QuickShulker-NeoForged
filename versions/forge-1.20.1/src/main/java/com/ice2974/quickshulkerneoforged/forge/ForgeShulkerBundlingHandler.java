@@ -273,9 +273,7 @@ public final class ForgeShulkerBundlingHandler {
         }
         int shulkerBefore = countShulkerItems(carried);
 
-        ShulkerBundlingResult<ItemStack, ItemStack> result = mouseDragged
-            ? HELPER.extractLastStack(carried)
-            : HELPER.extractFirstStack(carried);
+        ShulkerBundlingResult<ItemStack, ItemStack> result = HELPER.extractLastStack(carried);
         if (!result.changed() || result.updatedContainerStack().isEmpty() || result.extractedStack().isEmpty()) {
             LOGGER.debug("Rejected Forge extract after helper validation: failure={}, detail={}", result.failure(), result.detail());
             return;
