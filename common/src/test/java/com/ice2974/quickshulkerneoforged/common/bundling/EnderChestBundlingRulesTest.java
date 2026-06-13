@@ -165,6 +165,47 @@ class EnderChestBundlingRulesTest {
         assertEquals(beforeExtract, afterExtract);
     }
 
+    @Test
+    void extractSkipShulkerPicksOrdinaryItemBeforeShulkerAtTail() {
+        FakePlayer player = new FakePlayer(contents(EMPTY, STONE_16, SHULKER_1));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractLastStack(player, true);
+
+        assertTrue(result.success());
+        assertEquals(STONE_16, result.extractedStack().orElseThrow());
+        assertEquals(SHULKER_1, player.enderChestContents().get(2));
+        assertTrue(player.enderChestContents().get(1).isEmpty());
+    }
+
+    @Test
+    void extractSkipShulkerFailsWhenOnlyShulkersRemainAndLeavesContentsUnchanged() {
+        FakePlayer player = new FakePlayer(contents(EMPTY, SHULKER_1, SHULKER_1));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+        List<FakeStack> before = contents(EMPTY, SHULKER_1, SHULKER_1);
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractLastStack(player, true);
+
+        assertFalse(result.success());
+        assertFalse(result.changed());
+        assertEquals(ShulkerBundlingFailure.NO_ITEMS_TO_EXTRACT, result.failure());
+        assertTrue(result.extractedStack().isEmpty());
+        assertEquals(before, player.enderChestContents());
+    }
+
+    @Test
+    void extractWithoutSkipStillReturnsLastShulkerForPlainSlot() {
+        FakePlayer player = new FakePlayer(contents(EMPTY, STONE_16, SHULKER_1));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractLastStack(player, false);
+
+        assertTrue(result.success());
+        assertEquals(SHULKER_1, result.extractedStack().orElseThrow());
+        assertTrue(player.enderChestContents().get(2).isEmpty());
+        assertEquals(STONE_16, player.enderChestContents().get(1));
+    }
+
     private static PlayerEnderChestBundlingService<FakePlayer, FakeStack> service() {
         return new PlayerEnderChestBundlingService<>(new FakeEnderChestAccess(), ADAPTER);
     }

@@ -476,24 +476,18 @@ public final class NeoForgeShulkerBundlingHandler {
             return;
         }
 
+        boolean targetIsShulkerContentSlot = isShulkerMenuContainerSlot(player, intent.hostSlot());
         ShulkerBundlingResult<List<ItemStack>, ItemStack> result =
             EnderChestBundlingRules.extractLastStackFromPlayerEnderChest(
                 ENDER_CHEST_ACCESS.readPlayerEnderChestContents(player),
-                ENDER_CHEST_ADAPTER
+                ENDER_CHEST_ADAPTER,
+                targetIsShulkerContentSlot
             );
         if (!result.changed() || result.updatedContainerStack().isEmpty() || result.extractedStack().isEmpty()) {
-            LOGGER.debug("Rejected NeoForge ender chest extract after service validation: failure={}, detail={}", result.failure(), result.detail());
+            LOGGER.debug("Rejected NeoForge ender chest extract after service validation: failure={}, detail={}, targetIsShulkerContentSlot={}", result.failure(), result.detail(), targetIsShulkerContentSlot);
             return;
         }
         ItemStack extractedStack = result.extractedStack().orElseThrow().copy();
-        if (isShulkerMenuContainerSlot(player, intent.hostSlot()) && isShulkerBox(extractedStack)) {
-            LOGGER.debug(
-                "Rejected NeoForge ender chest extract because the extracted shulker box would nest into a shulker menu content slot: hostSlot={}, extracted={}",
-                intent.hostSlot(),
-                describeStack(extractedStack)
-            );
-            return;
-        }
         if (!NeoForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), extractedStack)) {
             LOGGER.debug("Rejected NeoForge ender chest extract because target slot is unsafe for writeback: hostSlot={}", intent.hostSlot());
             return;

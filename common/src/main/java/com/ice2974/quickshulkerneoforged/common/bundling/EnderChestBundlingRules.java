@@ -62,6 +62,17 @@ public final class EnderChestBundlingRules {
         List<S> originalContents,
         EnderChestBundlingStackAdapter<S> adapter
     ) {
+        return extractLastStackFromPlayerEnderChest(originalContents, adapter, false);
+    }
+
+    public static <S> ShulkerBundlingResult<List<S>, S> extractLastStackFromPlayerEnderChest(
+        List<S> originalContents,
+        EnderChestBundlingStackAdapter<S> adapter,
+        boolean skipShulkerBoxes
+    ) {
+        if (skipShulkerBoxes) {
+            return ContainerBundlingRules.extractLastStack(originalContents, adapter, stack -> !adapter.isShulkerBox(stack));
+        }
         return ContainerBundlingRules.extractLastStack(originalContents, adapter);
     }
 }

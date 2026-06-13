@@ -35,9 +35,14 @@ public final class PlayerEnderChestBundlingService<P, S> {
     }
 
     public ShulkerBundlingResult<List<S>, S> extractLastStack(P playerHandle) {
+        return extractLastStack(playerHandle, false);
+    }
+
+    public ShulkerBundlingResult<List<S>, S> extractLastStack(P playerHandle, boolean skipShulkerBoxes) {
         ShulkerBundlingResult<List<S>, S> ruleResult = EnderChestBundlingRules.extractLastStackFromPlayerEnderChest(
             contentAccess.readPlayerEnderChestContents(playerHandle),
-            adapter
+            adapter,
+            skipShulkerBoxes
         );
         return applyWriteback(playerHandle, ruleResult);
     }

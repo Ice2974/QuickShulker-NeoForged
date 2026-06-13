@@ -3,6 +3,7 @@ package com.ice2974.quickshulkerneoforged.common.bundling;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 public final class ContainerBundlingRules {
     private ContainerBundlingRules() {
@@ -132,10 +133,18 @@ public final class ContainerBundlingRules {
         List<S> originalContents,
         ShulkerBundlingStackAdapter<S> adapter
     ) {
+        return extractLastStack(originalContents, adapter, stack -> true);
+    }
+
+    public static <S> ShulkerBundlingResult<List<S>, S> extractLastStack(
+        List<S> originalContents,
+        ShulkerBundlingStackAdapter<S> adapter,
+        Predicate<S> acceptable
+    ) {
         List<S> contents = copyContents(originalContents, adapter);
         for (int i = contents.size() - 1; i >= 0; i--) {
             S existing = contents.get(i);
-            if (adapter.isEmpty(existing)) {
+            if (adapter.isEmpty(existing) || !acceptable.test(existing)) {
                 continue;
             }
             S extracted = adapter.copy(existing);
