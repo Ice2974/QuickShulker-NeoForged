@@ -65,6 +65,15 @@ public final class NeoForgeQuickShulkerNetwork {
                 payload.stack()
             )
         );
+        event.registrar(PROTOCOL_VERSION).playToClient(
+            NeoForgeCreativeCursorSyncPayload.TYPE,
+            NeoForgeCreativeCursorSyncPayload.STREAM_CODEC,
+            (payload, context) -> invokeClientHandler(
+                "applyCreativeCursorSync",
+                new Class<?>[]{ItemStack.class},
+                payload.stack()
+            )
+        );
     }
 
     public static void sendOpenHostItem(NeoForgeOpenHostItemPayload payload) {
@@ -81,6 +90,10 @@ public final class NeoForgeQuickShulkerNetwork {
 
     public static void sendEnderChestSlotSync(ServerPlayer player, String sessionId, int slotIndex, ItemStack stack) {
         PacketDistributor.sendToPlayer(player, new NeoForgeEnderChestSlotSyncPayload(sessionId, slotIndex, stack));
+    }
+
+    public static void sendCreativeCursorSync(ServerPlayer player, ItemStack stack) {
+        PacketDistributor.sendToPlayer(player, new NeoForgeCreativeCursorSyncPayload(stack));
     }
 
     private static void invokeClientHandler(String methodName, Class<?>[] parameterTypes, Object... args) {

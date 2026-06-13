@@ -53,6 +53,11 @@ public final class ForgeQuickShulkerNetwork {
             .decoder(ForgeEnderChestSlotSyncPacket::decode)
             .consumerMainThread(ForgeQuickShulkerNetwork::handleEnderChestSlotSync)
             .add();
+        CHANNEL.messageBuilder(ForgeCreativeCursorSyncPacket.class, 4, NetworkDirection.PLAY_TO_CLIENT)
+            .encoder(ForgeCreativeCursorSyncPacket::encode)
+            .decoder(ForgeCreativeCursorSyncPacket::decode)
+            .consumerMainThread(ForgeQuickShulkerNetwork::handleCreativeCursorSync)
+            .add();
     }
 
     private static void handleOpenHostItem(
@@ -82,6 +87,10 @@ public final class ForgeQuickShulkerNetwork {
 
     public static void sendEnderChestSlotSync(ServerPlayer player, String sessionId, int slotIndex, ItemStack stack) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ForgeEnderChestSlotSyncPacket(sessionId, slotIndex, stack));
+    }
+
+    public static void sendCreativeCursorSync(ServerPlayer player, ItemStack stack) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ForgeCreativeCursorSyncPacket(stack));
     }
 
     private static void handleShulkerBundling(
@@ -118,6 +127,18 @@ public final class ForgeQuickShulkerNetwork {
             new Class<?>[]{String.class, int.class, ItemStack.class},
             packet.sessionId(),
             packet.slotIndex(),
+            packet.stack()
+        );
+        contextSupplier.get().setPacketHandled(true);
+    }
+
+    private static void handleCreativeCursorSync(
+        ForgeCreativeCursorSyncPacket packet,
+        Supplier<NetworkEvent.Context> contextSupplier
+    ) {
+        invokeClientHandler(
+            "applyCreativeCursorSync",
+            new Class<?>[]{ItemStack.class},
             packet.stack()
         );
         contextSupplier.get().setPacketHandled(true);

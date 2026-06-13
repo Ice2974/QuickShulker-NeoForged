@@ -524,6 +524,22 @@ public final class ForgeQuickShulkerClient {
         LOGGER.debug("Applied ender chest slot sync: sessionId={}, slotIndex={}", sessionId, slotIndex);
     }
 
+    public static void applyCreativeCursorSync(ItemStack stack) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Player player = minecraft.player;
+        if (player == null || !player.getAbilities().instabuild) {
+            LOGGER.debug("Ignored creative cursor sync because local creative player is unavailable");
+            return;
+        }
+
+        ItemStack synced = stack.copy();
+        player.containerMenu.setCarried(synced.copy());
+        if (minecraft.screen instanceof AbstractContainerScreen<?> containerScreen) {
+            containerScreen.getMenu().setCarried(synced.copy());
+        }
+        LOGGER.debug("Applied Forge creative cursor sync: stack={}", describeStack(synced));
+    }
+
     private static boolean shouldBlockOffhandSwap(Screen screen, Minecraft minecraft, int keyCode, int scanCode) {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return false;
