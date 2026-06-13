@@ -45,6 +45,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class ForgeQuickShulkerClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(ForgeQuickShulkerClient.class);
     private static boolean suppressNextInventoryRightRelease;
+    private static boolean suppressBundlingMousePressedUntilRelease;
     private static DragMode dragMode = DragMode.NONE;
     private static final Set<HostSlotRef> DRAGGED_HOST_SLOTS = new HashSet<>();
     private static long currentDragId;
@@ -134,12 +135,18 @@ public final class ForgeQuickShulkerClient {
             return;
         }
 
+        if (suppressBundlingMousePressedUntilRelease) {
+            event.setCanceled(true);
+            return;
+        }
+
         Optional<ShulkerBundlingIntent> bundlingIntent = determineBundlingIntent(player, event.getScreen());
         if (bundlingIntent.isPresent()) {
             AbstractContainerScreen<?> containerScreen = (AbstractContainerScreen<?>) event.getScreen();
             ShulkerBundlingIntent preparedIntent = prepareBundlingIntent(containerScreen, bundlingIntent.get());
             sendBundlingIntent(containerScreen, preparedIntent);
             beginMouseDrag(player, preparedIntent);
+            suppressBundlingMousePressedUntilRelease = true;
             suppressNextInventoryRightRelease = true;
             event.setCanceled(true);
             return;
@@ -187,6 +194,7 @@ public final class ForgeQuickShulkerClient {
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
         suppressNextInventoryRightRelease = false;
+        suppressBundlingMousePressedUntilRelease = false;
         clearMouseDrag();
         ForgeQuickOpenMouseRestore.onScreenInit(event.getScreen());
     }
@@ -330,8 +338,7 @@ public final class ForgeQuickShulkerClient {
     private static void beginMouseDrag(Player player, ShulkerBundlingIntent intent) {
         dragMode = DragMode.NONE;
         DRAGGED_HOST_SLOTS.clear();
-        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()) {
-            currentDragId = 0L;
+        if (currentDragId == 0L || dragContainerId < 0) {
             dragContainerId = -1;
             return;
         }
@@ -409,6 +416,7 @@ public final class ForgeQuickShulkerClient {
 
     private static void clearMouseDrag() {
         sendEndMouseDrag();
+        suppressBundlingMousePressedUntilRelease = false;
         dragMode = DragMode.NONE;
         DRAGGED_HOST_SLOTS.clear();
         currentDragId = 0L;
@@ -438,9 +446,10 @@ public final class ForgeQuickShulkerClient {
         ShulkerBundlingIntent intent
     ) {
         int containerId = containerScreen.getMenu().containerId;
-        if (!ForgeQuickShulkerConfig.view().supportsMouseDragged()
-            || (intent.action() != ShulkerBundlingAction.PICKUP_INSERT
-            && intent.action() != ShulkerBundlingAction.EXTRACT)) {
+        if (intent.action() != ShulkerBundlingAction.PICKUP_INSERT
+            && intent.action() != ShulkerBundlingAction.EXTRACT) {
+            currentDragId = 0L;
+            dragContainerId = -1;
             return new ShulkerBundlingIntent(intent.action(), intent.hostSlot(), containerId, 0L);
         }
 

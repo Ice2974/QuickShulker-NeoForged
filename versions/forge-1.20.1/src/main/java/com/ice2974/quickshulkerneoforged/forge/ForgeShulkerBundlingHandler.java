@@ -37,6 +37,15 @@ public final class ForgeShulkerBundlingHandler {
             clearCreativeServerCarried(player, intent, "end_mouse_drag");
             return;
         }
+        if (intent.action() == ShulkerBundlingAction.MOUSE_DRAG_INSERT) {
+            LOGGER.debug(
+                "Rejected Forge mouse dragged insert because Forge 1.20.1 does not support dragging ordinary carried stacks into shulkers: action={}, hostSlot={}, packetContainerId={}",
+                intent.action(),
+                intent.hostSlot(),
+                intent.containerId()
+            );
+            return;
+        }
         if (!matchesCurrentContainer(player, intent)) {
             LOGGER.debug(
                 "Rejected Forge bundling intent for stale container: action={}, packetContainerId={}, currentContainerId={}, hostSlot={}",
@@ -51,7 +60,17 @@ public final class ForgeShulkerBundlingHandler {
         DragSession dragSession = null;
         if (isDragSessionIntent(intent)) {
             dragSession = resolveDragSession(player, intent, cursorStack);
-            if (dragSession == null || !dragSession.markProcessed(intent.action(), intent.hostSlot())) {
+            if (dragSession == null) {
+                return;
+            }
+            if (!dragSession.markProcessed(intent.action(), intent.hostSlot())) {
+                LOGGER.debug(
+                    "Rejected duplicate Forge mouse dragged bundling slot: action={}, hostSlot={}, packetContainerId={}, dragId={}",
+                    intent.action(),
+                    intent.hostSlot(),
+                    intent.containerId(),
+                    intent.dragId()
+                );
                 return;
             }
         } else {
@@ -349,6 +368,9 @@ public final class ForgeShulkerBundlingHandler {
 
     private static ItemStack resolvedCarried(ServerPlayer player, ItemStack cursorStack, DragSession dragSession) {
         if (player.getAbilities().instabuild) {
+            if (dragSession != null && dragSession.hasServerCarried()) {
+                return player.containerMenu.getCarried().copy();
+            }
             return cursorStack == null ? ItemStack.EMPTY : cursorStack.copy();
         }
         return player.containerMenu.getCarried().copy();
@@ -356,6 +378,9 @@ public final class ForgeShulkerBundlingHandler {
 
     private static void setCarried(ServerPlayer player, ItemStack stack, DragSession dragSession) {
         player.containerMenu.setCarried(stack.copy());
+        if (dragSession != null && player.getAbilities().instabuild) {
+            dragSession.markServerCarried();
+        }
     }
 
     private static boolean matchesCurrentContainer(ServerPlayer player, ShulkerBundlingIntent intent) {
@@ -372,18 +397,17 @@ public final class ForgeShulkerBundlingHandler {
     }
 
     private static DragSession resolveDragSession(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
-        ItemStack currentCarried = player.getAbilities().instabuild
-            ? cursorStack.copy()
-            : player.containerMenu.getCarried().copy();
-        if (!isSingleShulkerBox(currentCarried)) {
-            LOGGER.debug("Rejected Forge mouse drag session due to non-single-shulker carried stack: action={}, hostSlot={}",
-                intent.action(), intent.hostSlot());
-            return null;
-        }
-
         long now = currentGameTime(player);
         DragSession session = DRAG_SESSIONS.get(player.getUUID());
         if (session == null || !session.matches(intent.containerId(), intent.dragId())) {
+            ItemStack initialCarried = player.getAbilities().instabuild
+                ? (cursorStack == null ? ItemStack.EMPTY : cursorStack.copy())
+                : player.containerMenu.getCarried().copy();
+            if (!isSingleShulkerBox(initialCarried)) {
+                LOGGER.debug("Rejected Forge mouse drag session due to non-single-shulker carried stack: action={}, hostSlot={}",
+                    intent.action(), intent.hostSlot());
+                return null;
+            }
             if (intent.action() == ShulkerBundlingAction.MOUSE_DRAG_PICKUP_INSERT
                 || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_EXTRACT) {
                 LOGGER.debug("Rejected Forge mouse drag continuation without active session: action={}, hostSlot={}",
@@ -393,6 +417,12 @@ public final class ForgeShulkerBundlingHandler {
             session = new DragSession(intent.containerId(), intent.dragId(), now);
             DRAG_SESSIONS.put(player.getUUID(), session);
             return session;
+        }
+        ItemStack currentCarried = player.containerMenu.getCarried().copy();
+        if (!isSingleShulkerBox(currentCarried)) {
+            LOGGER.debug("Rejected Forge mouse drag session due to non-single-shulker server carried stack: action={}, hostSlot={}",
+                intent.action(), intent.hostSlot());
+            return null;
         }
         session.refresh(now);
         return session;
@@ -550,6 +580,7 @@ public final class ForgeShulkerBundlingHandler {
         private final long dragId;
         private final Set<ProcessedDragSlot> processedSlots = new HashSet<>();
         private long lastSeenGameTime;
+        private boolean serverCarried;
 
         private DragSession(int containerId, long dragId, long lastSeenGameTime) {
             this.containerId = containerId;
@@ -567,6 +598,14 @@ public final class ForgeShulkerBundlingHandler {
 
         private boolean markProcessed(ShulkerBundlingAction action, HostSlotRef hostSlot) {
             return processedSlots.add(new ProcessedDragSlot(action, hostSlot));
+        }
+
+        private boolean hasServerCarried() {
+            return serverCarried;
+        }
+
+        private void markServerCarried() {
+            serverCarried = true;
         }
     }
 
