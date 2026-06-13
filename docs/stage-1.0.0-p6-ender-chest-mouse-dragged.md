@@ -2,6 +2,16 @@
 
 本阶段接入"拿起单个末影箱拖拽"的批量行为，与潜影盒拖拽体验保持一致，同时保留末影箱优先级和防嵌套规则。
 
+## 阶段 6.1 核对与文档修正
+
+本阶段（6.1）针对阶段 6 文档与远程源码可能存在不一致的反馈进行了核对，结论如下：
+
+- common `ShulkerBundlingAction` 已包含 `MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT` 与 `MOUSE_DRAG_ENDER_CHEST_EXTRACT`，位于 `ENDER_CHEST_EXTRACT` 之后、`UNKNOWN` 之前，与文档描述一致。
+- Forge 客户端 `ForgeQuickShulkerClient`、NeoForge 客户端 `NeoForgeQuickShulkerClient` 均已识别并处理上述两个 drag action。
+- Forge 服务端 `ForgeShulkerBundlingHandler`、NeoForge 服务端 `NeoForgeShulkerBundlingHandler` 均已实现 `isEnderChestDragAction`、`handleMouseDragEnderChestPickupInsert`、`handleMouseDragEnderChestExtract`，并在 `isDragSessionIntent`、`resolveDragSession` 中覆盖末影箱拖拽。
+- 网络序列化使用 `action.name()` / `fromSerializedName`（基于 `valueOf`），新增枚举值自动兼容，无需手写映射。
+- 结论：阶段 6 代码实际已落库且三侧一致，未发现编译失败或缺失实现。本阶段 6.1 的主要工作是重新验证并修正文档中的乱码 / 控制字符问题。
+
 ## 范围
 
 本阶段只支持"拿末影箱拖拽"，不支持"拿普通物品拖过多个末影箱"的批量 insert。
@@ -20,7 +30,7 @@
   - 普通物品可以收入。
   - 潜影盒也可以收入末影箱。
   - 末影箱不能收入末影箱（防嵌套），客户端 canInsertIntoEnderChest 拦截。
-- 末影箱满时收入失败，服务端 esult.changed() == false，目标槽和末影箱内容均不变，不回退为潜影盒 bundling。
+- 末影箱满时收入失败，服务端 result.changed() == false，目标槽和末影箱内容均不变，不回退为潜影盒 bundling。
 - 目标槽为当前 quick-open 宿主时跳过（isCurrentQuickOpenHost / HostIdentity.sameSlot）。
 
 ### 批量放出（extract drag）
@@ -44,15 +54,15 @@ ShulkerBundlingAction 新增两个枚举值：
 - MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT
 - MOUSE_DRAG_ENDER_CHEST_EXTRACT
 
-这两个值追加在 ENDER_CHEST_EXTRACT 之后、UNKNOWN 之前。序列化使用 ction.name() / romSerializedName（基于 alueOf），自动兼容。
+这两个值追加在 ENDER_CHEST_EXTRACT 之后、UNKNOWN 之前。序列化使用 action.name() / fromSerializedName（基于 valueOf），自动兼容。
 
 ### 客户端（Forge + NeoForge）
 
 - DragMode 新增 PICKUP_INTO_CARRIED_ENDER_CHEST 和 EXTRACT_FROM_CARRIED_ENDER_CHEST。
 - determineEnderChestBundlingIntent 未修改：仍然在拿单个末影箱且悬停真实空槽时生成 ENDER_CHEST_EXTRACT，在拿单个末影箱且悬停非空可收入物品时生成 ENDER_CHEST_PICKUP_INSERT。
 - prepareBundlingIntent：当 supportsMouseDragged() 开启且 action 为 ENDER_CHEST_PICKUP_INSERT 或 ENDER_CHEST_EXTRACT 时，分配 dragId，使末影箱右键成为拖拽起始。
-- eginMouseDrag：根据起始 action 设置 PICKUP_INTO_CARRIED_ENDER_CHEST 或 EXTRACT_FROM_CARRIED_ENDER_CHEST。
-- 	rySendMouseDraggedBundlingIntent：
+- beginMouseDrag：根据起始 action 设置 PICKUP_INTO_CARRIED_ENDER_CHEST 或 EXTRACT_FROM_CARRIED_ENDER_CHEST。
+- trySendMouseDraggedBundlingIntent：
   - pickup 模式：isSingleEnderChest(carried) && !hoveredStack.isEmpty() && canInsertIntoEnderChest(hoveredStack) → MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT。
   - extract 模式：isSingleEnderChest(carried) && hoveredStack.isEmpty() → MOUSE_DRAG_ENDER_CHEST_EXTRACT。
 - isEnderChestBundlingAction 包含两个新 drag action，确保拖拽状态清理（clearMouseDrag / screen init / close）覆盖末影箱拖拽。
@@ -65,13 +75,15 @@ ShulkerBundlingAction 新增两个枚举值：
   - 末影箱基础 action（ENDER_CHEST_INSERT）且非拖拽 → 原有单次路径。
   - 末影箱拖拽 action → 进入 drag session 流程（与潜影盒一致）。
 - isDragSessionIntent：包含 ENDER_CHEST_PICKUP_INSERT、ENDER_CHEST_EXTRACT、MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT、MOUSE_DRAG_ENDER_CHEST_EXTRACT。
-- esolveDragSession：
+- resolveDragSession：
   - isValidDragCarried(carried, enderChestDrag)：末影箱拖拽要求 isSingleEnderChest，潜影盒拖拽要求 isSingleShulkerBox。
   - 续拖 action（MOUSE_DRAG_*）无活动 session 时拒绝。
 - handleEnderChestBundling：新增 4 参数重载（含 dragSession），内部 switch 调用 session-aware 的 handleEnderChestPickupInsert(4-arg) / handleEnderChestExtract(4-arg)。
 - handleMouseDragEnderChestPickupInsert / handleMouseDragEnderChestExtract：检查 supportsMouseDragged()，将 action 重映射为基础 action 后委托 4 参数核心方法。
-- handleEnderChestPickupInsert / handleEnderChestExtract：新增 4 参数重载，esolvedCarried 和 carriedStillMatches 传入 dragSession，其余校验链路（canSafelyReadAndShrink、target stack 二次校验、canSafelyReplace、writeback）保持不变。
-- 创造模式：末影箱 carried 在整个拖拽过程中不变，esolvedCarried 在首次调用时使用 cursorStack，syncCreativeCursor 同步未改变的 carried，不复制不丢失。
+- handleEnderChestPickupInsert / handleEnderChestExtract：新增 4 参数重载，
+resolvedCarried 和 carriedStillMatches 传入 dragSession，其余校验链路（canSafelyReadAndShrink、target stack 二次校验、canSafelyReplace、writeback）保持不变。
+- 创造模式：末影箱 carried 在整个拖拽过程中不变，
+resolvedCarried 在首次调用时使用 cursorStack，syncCreativeCursor 同步未改变的 carried，不复制不丢失。
 
 ## 数据安全边界
 
@@ -79,20 +91,21 @@ ShulkerBundlingAction 新增两个枚举值：
 - pickup insert：
   - 服务端读取目标槽 stack 后调用 ENDER_CHEST_SERVICE.pickupInsert，服务层在规则通过时才写入末影箱。
   - 写回前二次校验目标槽未变（ItemStack.matches）、carried 未变（carriedStillMatches）、目标槽可安全替换（canSafelyReplace）。
-  - 末影箱满时 esult.changed() == false，服务层不写入，目标槽和末影箱内容均不变。
+  - 末影箱满时 result.changed() == false，服务层不写入，目标槽和末影箱内容均不变。
 - extract：
-  - 目标槽必须为空（	argetStack.isEmpty()）。
+  - 目标槽必须为空（targetStack.isEmpty()）。
   - 规则层计算候选（extractLastStackFromPlayerEnderChest + skipShulkerBoxes），不直接写入。
   - 写回前二次校验目标槽仍为空、carried 未变。
   - 末影箱内容写回通过 writePlayerEnderChestContents，失败时拒绝。
-- 拖拽过程中某个槽失败时保守跳过（eturn），不造成物品复制、丢失、重排或幽灵物品。
+- 拖拽过程中某个槽失败时保守跳过（
+eturn），不造成物品复制、丢失、重排或幽灵物品。
 - 当前打开 QuickShulker 潜影盒菜单时，末影箱拖拽放出不能把潜影盒放进潜影盒内容槽（skipShulkerBoxes = true）。
 - 拖拽状态清理与潜影盒 mouse dragged 一致：左右键同时按下、screen init / close、输入取消和 carried stack 同步。
 
 ## 创造模式边界
 
 - 末影箱 carried 不随拖拽变化（末影箱只是触发器/容器门控）。
-- esolvedCarried 在创造模式下首次使用 cursorStack，后续不依赖 dragSession.creativeCursor（因为末影箱 carried 不变）。
+- resolvedCarried 在创造模式下首次使用 cursorStack，后续不依赖 dragSession.creativeCursor（因为末影箱 carried 不变）。
 - syncCreativeCursor 同步未改变的末影箱 carried，不复制不丢失。
 - 与阶段 5.2 的创造模式 carried 同步逻辑一致，未新增分叉的 carried 逻辑。
 
@@ -106,7 +119,7 @@ ShulkerBundlingAction 新增两个枚举值：
 ## 未实现
 
 - 不实现"拿普通物品拖过多个末影箱"的批量 insert。
-- 不恢复 ightClickClose、Bundle 或 reopen inventory。
+- 不恢复 rightClickClose、Bundle 或 reopen inventory。
 
 ## 验证
 
@@ -120,6 +133,15 @@ ShulkerBundlingAction 新增两个枚举值：
 - Forge 1.20.1：:forge-1.20.1:compileJava 通过。
 - NeoForge 1.21.1：:neoforge-1.21.1:compileJava 通过。
 - git diff --check 通过。
+
+阶段 6.1 重新验证（针对本次核对）：
+
+- `git status`：工作树干净，阶段 6 代码均已提交。
+- `git diff --stat`：本次仅修改本文档。
+- `git diff --check`：通过。
+- `gradlew.bat :common:test --rerun-tasks`：通过。
+- `gradlew.bat :forge-1.20.1:compileJava --rerun-tasks`：通过（实际编译，非缓存）。
+- `gradlew.bat :neoforge-1.21.1:compileJava --rerun-tasks`：通过（实际编译，非缓存）。
 
 ## 待人工确认项
 
