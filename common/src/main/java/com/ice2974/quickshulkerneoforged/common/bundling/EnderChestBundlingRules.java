@@ -58,10 +58,10 @@ public final class EnderChestBundlingRules {
         return insertIntoPlayerEnderChest(originalContents, slotStack, adapter);
     }
 
-    public static <S> ShulkerBundlingResult<List<S>, S> extractFirstStackFromPlayerEnderChest(
+    public static <S> ShulkerBundlingResult<List<S>, S> extractLastStackFromPlayerEnderChest(
         List<S> originalContents,
         EnderChestBundlingStackAdapter<S> adapter
     ) {
-        return ContainerBundlingRules.extractFirstStack(originalContents, adapter);
+        return ContainerBundlingRules.extractLastStack(originalContents, adapter);
     }
 }

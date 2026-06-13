@@ -488,10 +488,6 @@ public final class ForgeShulkerBundlingHandler {
         if (!ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             return;
         }
-        if (isShulkerMenuContainerSlot(player, intent.hostSlot())) {
-            LOGGER.debug("Rejected Forge ender chest extract into shulker menu slot: hostSlot={}", intent.hostSlot());
-            return;
-        }
         ItemStack targetStack = ForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();
         if (!targetStack.isEmpty()) {
             LOGGER.debug("Rejected Forge ender chest extract because target slot was not empty: hostSlot={}", intent.hostSlot());
@@ -505,7 +501,7 @@ public final class ForgeShulkerBundlingHandler {
         }
 
         ShulkerBundlingResult<List<ItemStack>, ItemStack> result =
-            EnderChestBundlingRules.extractFirstStackFromPlayerEnderChest(
+            EnderChestBundlingRules.extractLastStackFromPlayerEnderChest(
                 ENDER_CHEST_ACCESS.readPlayerEnderChestContents(player),
                 ENDER_CHEST_ADAPTER
             );
@@ -514,6 +510,14 @@ public final class ForgeShulkerBundlingHandler {
             return;
         }
         ItemStack extractedStack = result.extractedStack().orElseThrow().copy();
+        if (isShulkerMenuContainerSlot(player, intent.hostSlot()) && isShulkerBox(extractedStack)) {
+            LOGGER.debug(
+                "Rejected Forge ender chest extract because the extracted shulker box would nest into a shulker menu content slot: hostSlot={}, extracted={}",
+                intent.hostSlot(),
+                describeStack(extractedStack)
+            );
+            return;
+        }
         if (!ForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), extractedStack)) {
             LOGGER.debug("Rejected Forge ender chest extract because target slot is unsafe for writeback: hostSlot={}", intent.hostSlot());
             return;

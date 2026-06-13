@@ -115,34 +115,34 @@ class EnderChestBundlingRulesTest {
         FakePlayer player = new FakePlayer(contents(EMPTY, EMPTY, EMPTY));
         PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
 
-        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractFirstStack(player);
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractLastStack(player);
 
         assertFalse(result.success());
         assertEquals(ShulkerBundlingFailure.NO_ITEMS_TO_EXTRACT, result.failure());
     }
 
     @Test
-    void extractReturnsFirstStackToEmptySlotSemantic() {
+    void extractReturnsLastStackToEmptySlotSemantic() {
         FakePlayer player = new FakePlayer(contents(EMPTY, DIRT_8, STONE_16));
         PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
 
-        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractFirstStack(player);
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractLastStack(player);
 
         assertTrue(result.success());
-        assertEquals(DIRT_8, result.extractedStack().orElseThrow());
-        assertTrue(player.enderChestContents().get(1).isEmpty());
+        assertEquals(STONE_16, result.extractedStack().orElseThrow());
+        assertTrue(player.enderChestContents().get(2).isEmpty());
     }
 
     @Test
     void extractCanReturnShulkerAsPlainEnderChestInventoryItem() {
-        FakePlayer player = new FakePlayer(contents(EMPTY, SHULKER_1, STONE_16));
+        FakePlayer player = new FakePlayer(contents(EMPTY, STONE_16, SHULKER_1));
         PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
 
-        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractFirstStack(player);
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractLastStack(player);
 
         assertTrue(result.success());
         assertEquals(SHULKER_1, result.extractedStack().orElseThrow());
-        assertTrue(player.enderChestContents().get(1).isEmpty());
+        assertTrue(player.enderChestContents().get(2).isEmpty());
     }
 
     @Test
@@ -158,7 +158,7 @@ class EnderChestBundlingRulesTest {
         assertEquals(beforeInsert, afterInsert);
 
         int beforeExtract = totalCount(player.enderChestContents());
-        ShulkerBundlingResult<List<FakeStack>, FakeStack> extractResult = service.extractFirstStack(player);
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> extractResult = service.extractLastStack(player);
         int afterExtract = totalCount(player.enderChestContents()) + extractResult.extractedStack().orElseThrow().count();
 
         assertTrue(extractResult.success());
