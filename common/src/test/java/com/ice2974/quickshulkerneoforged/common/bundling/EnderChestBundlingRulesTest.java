@@ -206,6 +206,71 @@ class EnderChestBundlingRulesTest {
         assertEquals(STONE_16, player.enderChestContents().get(1));
     }
 
+    @Test
+    void dragPickupInsertAcceptsShulkerBoxIntoEnderChest() {
+        FakePlayer player = new FakePlayer(contents(EMPTY, EMPTY, EMPTY));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.pickupInsert(player, SHULKER_1);
+
+        assertTrue(result.success());
+        assertEquals(SHULKER_1, player.enderChestContents().get(0));
+        assertTrue(result.updatedInputStack().orElseThrow().isEmpty());
+    }
+
+    @Test
+    void dragPickupInsertFailsWhenEnderChestFullAndLeavesContentsUnchanged() {
+        FakePlayer player = new FakePlayer(contents(STONE_64, DIRT_8));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+        List<FakeStack> before = contents(STONE_64, DIRT_8);
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.pickupInsert(player, SHULKER_1);
+
+        assertFalse(result.success());
+        assertFalse(result.changed());
+        assertEquals(ShulkerBundlingFailure.NO_SPACE, result.failure());
+        assertEquals(before, player.enderChestContents());
+    }
+
+    @Test
+    void dragExtractOrderIsBackToFront() {
+        FakePlayer player = new FakePlayer(contents(EMPTY, EMPTY, STONE_16, DIRT_8));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> first = service.extractLastStack(player, false);
+        assertTrue(first.success());
+        assertEquals(DIRT_8, first.extractedStack().orElseThrow());
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> second = service.extractLastStack(player, false);
+        assertTrue(second.success());
+        assertEquals(STONE_16, second.extractedStack().orElseThrow());
+    }
+
+    @Test
+    void dragExtractSkipShulkerKeepsShulkerInPlaceWhenExtractingOrdinary() {
+        FakePlayer player = new FakePlayer(contents(EMPTY, STONE_16, SHULKER_1, DIRT_8));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.extractLastStack(player, true);
+
+        assertTrue(result.success());
+        assertEquals(DIRT_8, result.extractedStack().orElseThrow());
+        assertEquals(SHULKER_1, player.enderChestContents().get(2));
+        assertEquals(STONE_16, player.enderChestContents().get(1));
+    }
+
+    @Test
+    void dragInsertDoesNotReorderExistingStacks() {
+        FakePlayer player = new FakePlayer(contents(STONE_16, EMPTY, DIRT_8));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.insert(player, STONE_16);
+
+        assertTrue(result.success());
+        assertEquals(STONE_32, player.enderChestContents().get(0));
+        assertEquals(DIRT_8, player.enderChestContents().get(2));
+    }
+
     private static PlayerEnderChestBundlingService<FakePlayer, FakeStack> service() {
         return new PlayerEnderChestBundlingService<>(new FakeEnderChestAccess(), ADAPTER);
     }

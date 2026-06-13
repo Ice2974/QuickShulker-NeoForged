@@ -63,7 +63,7 @@ public final class NeoForgeShulkerBundlingHandler {
             );
             return;
         }
-        if (isEnderChestBundlingAction(intent.action())) {
+        if (isEnderChestBundlingAction(intent.action()) && !isEnderChestDragAction(intent.action())) {
             DRAG_SESSIONS.remove(player.getUUID());
             handleEnderChestBundling(player, intent, cursorStack);
             return;
@@ -89,8 +89,9 @@ public final class NeoForgeShulkerBundlingHandler {
             case END_MOUSE_DRAG -> {
             }
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
-            case ENDER_CHEST_INSERT, ENDER_CHEST_PICKUP_INSERT, ENDER_CHEST_EXTRACT -> {
-            }
+            case ENDER_CHEST_INSERT, ENDER_CHEST_PICKUP_INSERT, ENDER_CHEST_EXTRACT -> handleEnderChestBundling(player, intent, cursorStack, dragSession);
+            case MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT -> handleMouseDragEnderChestPickupInsert(player, intent, cursorStack, dragSession);
+            case MOUSE_DRAG_ENDER_CHEST_EXTRACT -> handleMouseDragEnderChestExtract(player, intent, cursorStack, dragSession);
             case UNKNOWN -> LOGGER.debug("Rejected NeoForge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
         }
     }
@@ -357,6 +358,10 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static void handleEnderChestBundling(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        handleEnderChestBundling(player, intent, cursorStack, null);
+    }
+
+    private static void handleEnderChestBundling(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack, DragSession dragSession) {
         if (!NeoForgeQuickShulkerConfig.view().quickEnderChest()) {
             return;
         }
@@ -366,8 +371,8 @@ public final class NeoForgeShulkerBundlingHandler {
 
         switch (intent.action()) {
             case ENDER_CHEST_INSERT -> handleEnderChestInsert(player, intent, cursorStack);
-            case ENDER_CHEST_PICKUP_INSERT -> handleEnderChestPickupInsert(player, intent, cursorStack);
-            case ENDER_CHEST_EXTRACT -> handleEnderChestExtract(player, intent, cursorStack);
+            case ENDER_CHEST_PICKUP_INSERT -> handleEnderChestPickupInsert(player, intent, cursorStack, dragSession);
+            case ENDER_CHEST_EXTRACT -> handleEnderChestExtract(player, intent, cursorStack, dragSession);
             default -> {
             }
         }
@@ -415,6 +420,32 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static void handleEnderChestPickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        handleEnderChestPickupInsert(player, intent, cursorStack, null);
+    }
+
+    private static void handleMouseDragEnderChestPickupInsert(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        DragSession dragSession
+    ) {
+        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+            return;
+        }
+        handleEnderChestPickupInsert(player, new ShulkerBundlingIntent(
+            ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT,
+            intent.hostSlot(),
+            intent.containerId(),
+            intent.dragId()
+        ), cursorStack, dragSession);
+    }
+
+    private static void handleEnderChestPickupInsert(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        DragSession dragSession
+    ) {
         if (!NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
             return;
         }
@@ -423,7 +454,7 @@ public final class NeoForgeShulkerBundlingHandler {
             return;
         }
 
-        ItemStack carried = resolvedCarried(player, cursorStack);
+        ItemStack carried = resolvedCarried(player, cursorStack, dragSession);
         if (!isSingleEnderChest(carried)) {
             LOGGER.debug("Rejected NeoForge ender chest pickup insert because carried stack is not a single ender chest: carried={}", describeStack(carried));
             return;
@@ -445,7 +476,7 @@ public final class NeoForgeShulkerBundlingHandler {
             LOGGER.debug("Rejected NeoForge ender chest pickup insert because target slot changed before writeback: hostSlot={}", intent.hostSlot());
             return;
         }
-        if (!carriedStillMatches(player, carried, null)) {
+        if (!carriedStillMatches(player, carried, dragSession)) {
             LOGGER.debug("Rejected NeoForge ender chest pickup insert because carried stack changed before writeback: hostSlot={}", intent.hostSlot());
             return;
         }
@@ -461,6 +492,32 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static void handleEnderChestExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        handleEnderChestExtract(player, intent, cursorStack, null);
+    }
+
+    private static void handleMouseDragEnderChestExtract(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        DragSession dragSession
+    ) {
+        if (!NeoForgeQuickShulkerConfig.view().supportsMouseDragged()) {
+            return;
+        }
+        handleEnderChestExtract(player, new ShulkerBundlingIntent(
+            ShulkerBundlingAction.ENDER_CHEST_EXTRACT,
+            intent.hostSlot(),
+            intent.containerId(),
+            intent.dragId()
+        ), cursorStack, dragSession);
+    }
+
+    private static void handleEnderChestExtract(
+        ServerPlayer player,
+        ShulkerBundlingIntent intent,
+        ItemStack cursorStack,
+        DragSession dragSession
+    ) {
         if (!NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             return;
         }
@@ -470,7 +527,7 @@ public final class NeoForgeShulkerBundlingHandler {
             return;
         }
 
-        ItemStack carried = resolvedCarried(player, cursorStack);
+        ItemStack carried = resolvedCarried(player, cursorStack, dragSession);
         if (!isSingleEnderChest(carried)) {
             LOGGER.debug("Rejected NeoForge ender chest extract because carried stack is not a single ender chest: carried={}", describeStack(carried));
             return;
@@ -496,7 +553,7 @@ public final class NeoForgeShulkerBundlingHandler {
             LOGGER.debug("Rejected NeoForge ender chest extract because target slot changed before writeback: hostSlot={}", intent.hostSlot());
             return;
         }
-        if (!carriedStillMatches(player, carried, null)) {
+        if (!carriedStillMatches(player, carried, dragSession)) {
             LOGGER.debug("Rejected NeoForge ender chest extract because carried stack changed before writeback: hostSlot={}", intent.hostSlot());
             return;
         }
@@ -568,15 +625,20 @@ public final class NeoForgeShulkerBundlingHandler {
             && (intent.action() == ShulkerBundlingAction.PICKUP_INSERT
                 || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_PICKUP_INSERT
                 || intent.action() == ShulkerBundlingAction.EXTRACT
-                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_EXTRACT);
+                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_EXTRACT
+                || intent.action() == ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT
+                || intent.action() == ShulkerBundlingAction.ENDER_CHEST_EXTRACT
+                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT
+                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_EXTRACT);
     }
 
     private static DragSession resolveDragSession(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        boolean enderChestDrag = isEnderChestDragAction(intent.action());
         ItemStack currentCarried = player.getAbilities().instabuild
             ? cursorStack.copy()
             : player.containerMenu.getCarried().copy();
-        if (!isSingleShulkerBox(currentCarried)) {
-            LOGGER.debug("Rejected NeoForge mouse drag session due to non-single-shulker carried stack: action={}, hostSlot={}",
+        if (!isValidDragCarried(currentCarried, enderChestDrag)) {
+            LOGGER.debug("Rejected NeoForge mouse drag session due to invalid carried stack: action={}, hostSlot={}",
                 intent.action(), intent.hostSlot());
             return null;
         }
@@ -585,7 +647,9 @@ public final class NeoForgeShulkerBundlingHandler {
         DragSession session = DRAG_SESSIONS.get(player.getUUID());
         if (session == null || !session.matches(intent.containerId(), intent.dragId())) {
             if (intent.action() == ShulkerBundlingAction.MOUSE_DRAG_PICKUP_INSERT
-                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_EXTRACT) {
+                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_EXTRACT
+                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT
+                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_EXTRACT) {
                 LOGGER.debug("Rejected NeoForge mouse drag continuation without active session: action={}, hostSlot={}",
                     intent.action(), intent.hostSlot());
                 return null;
@@ -596,6 +660,17 @@ public final class NeoForgeShulkerBundlingHandler {
         }
         session.refresh(now);
         return session;
+    }
+
+    private static boolean isValidDragCarried(ItemStack carried, boolean enderChestDrag) {
+        return enderChestDrag ? isSingleEnderChest(carried) : isSingleShulkerBox(carried);
+    }
+
+    private static boolean isEnderChestDragAction(ShulkerBundlingAction action) {
+        return action == ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT
+            || action == ShulkerBundlingAction.ENDER_CHEST_EXTRACT
+            || action == ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT
+            || action == ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_EXTRACT;
     }
 
     private static void pruneDragSessions(ServerPlayer player) {

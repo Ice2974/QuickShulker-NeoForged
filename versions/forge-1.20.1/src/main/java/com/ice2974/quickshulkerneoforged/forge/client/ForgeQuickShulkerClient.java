@@ -384,6 +384,12 @@ public final class ForgeQuickShulkerClient {
         } else if (intent.action() == ShulkerBundlingAction.EXTRACT
             && ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             dragMode = DragMode.EXTRACT_FROM_CARRIED_SHULKER;
+        } else if (intent.action() == ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT
+            && ForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
+            dragMode = DragMode.PICKUP_INTO_CARRIED_ENDER_CHEST;
+        } else if (intent.action() == ShulkerBundlingAction.ENDER_CHEST_EXTRACT
+            && ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
+            dragMode = DragMode.EXTRACT_FROM_CARRIED_ENDER_CHEST;
         } else {
             currentDragId = 0L;
             dragContainerId = -1;
@@ -437,6 +443,17 @@ public final class ForgeQuickShulkerClient {
             && hoveredStack.isEmpty()
             && isSingleShulkerBox(carried)) {
             action = ShulkerBundlingAction.MOUSE_DRAG_EXTRACT;
+        } else if (dragMode == DragMode.PICKUP_INTO_CARRIED_ENDER_CHEST
+            && ForgeQuickShulkerConfig.view().supportsBundlingPickup()
+            && isSingleEnderChest(carried)
+            && !hoveredStack.isEmpty()
+            && canInsertIntoEnderChest(hoveredStack)) {
+            action = ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT;
+        } else if (dragMode == DragMode.EXTRACT_FROM_CARRIED_ENDER_CHEST
+            && ForgeQuickShulkerConfig.view().supportsBundlingExtract()
+            && hoveredStack.isEmpty()
+            && isSingleEnderChest(carried)) {
+            action = ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_EXTRACT;
         } else {
             return true;
         }
@@ -483,12 +500,17 @@ public final class ForgeQuickShulkerClient {
         ShulkerBundlingIntent intent
     ) {
         int containerId = containerScreen.getMenu().containerId;
-        if (isEnderChestBundlingAction(intent.action())) {
+        boolean canDragEnderChest = isEnderChestBundlingAction(intent.action())
+            && ForgeQuickShulkerConfig.view().supportsMouseDragged()
+            && (intent.action() == ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT
+                || intent.action() == ShulkerBundlingAction.ENDER_CHEST_EXTRACT);
+        if (isEnderChestBundlingAction(intent.action()) && !canDragEnderChest) {
             currentDragId = 0L;
             dragContainerId = -1;
             return new ShulkerBundlingIntent(intent.action(), intent.hostSlot(), containerId, 0L);
         }
-        if (intent.action() != ShulkerBundlingAction.PICKUP_INSERT
+        if (!canDragEnderChest
+            && intent.action() != ShulkerBundlingAction.PICKUP_INSERT
             && intent.action() != ShulkerBundlingAction.EXTRACT) {
             currentDragId = 0L;
             dragContainerId = -1;
@@ -652,7 +674,9 @@ public final class ForgeQuickShulkerClient {
     private static boolean isEnderChestBundlingAction(ShulkerBundlingAction action) {
         return action == ShulkerBundlingAction.ENDER_CHEST_INSERT
             || action == ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT
-            || action == ShulkerBundlingAction.ENDER_CHEST_EXTRACT;
+            || action == ShulkerBundlingAction.ENDER_CHEST_EXTRACT
+            || action == ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT
+            || action == ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_EXTRACT;
     }
 
     private static boolean isSingleEnderChest(ItemStack stack) {
@@ -686,6 +710,8 @@ public final class ForgeQuickShulkerClient {
     private enum DragMode {
         NONE,
         PICKUP_INTO_CARRIED_SHULKER,
-        EXTRACT_FROM_CARRIED_SHULKER
+        EXTRACT_FROM_CARRIED_SHULKER,
+        PICKUP_INTO_CARRIED_ENDER_CHEST,
+        EXTRACT_FROM_CARRIED_ENDER_CHEST
     }
 }

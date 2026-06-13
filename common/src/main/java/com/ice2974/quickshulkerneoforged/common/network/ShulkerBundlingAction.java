@@ -12,6 +12,8 @@ public enum ShulkerBundlingAction {
     ENDER_CHEST_INSERT,
     ENDER_CHEST_PICKUP_INSERT,
     ENDER_CHEST_EXTRACT,
+    MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT,
+    MOUSE_DRAG_ENDER_CHEST_EXTRACT,
     UNKNOWN;
 
     public static ShulkerBundlingAction fromSerializedName(String value) {
