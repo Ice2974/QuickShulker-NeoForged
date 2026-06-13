@@ -576,6 +576,7 @@ public final class ForgeShulkerBundlingHandler {
             if (dragSession != null) {
                 dragSession.setCreativeCursor(copy);
             }
+            player.containerMenu.setCarried(copy);
             return;
         }
         player.containerMenu.setCarried(copy);
