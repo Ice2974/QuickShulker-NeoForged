@@ -49,6 +49,7 @@ public final class NeoForgeQuickShulkerClient {
     private static final Set<HostSlotRef> DRAGGED_HOST_SLOTS = new HashSet<>();
     private static long currentDragId;
     private static int dragContainerId = -1;
+    private static final HostSlotRef END_DRAG_HOST_SLOT = new HostSlotRef(HostStorageScope.UNKNOWN, -1, -1);
 
     private NeoForgeQuickShulkerClient() {
     }
@@ -416,10 +417,29 @@ public final class NeoForgeQuickShulkerClient {
     }
 
     private static void clearMouseDrag() {
+        sendEndMouseDrag();
         dragMode = DragMode.NONE;
         DRAGGED_HOST_SLOTS.clear();
         currentDragId = 0L;
         dragContainerId = -1;
+    }
+
+    private static void sendEndMouseDrag() {
+        if (dragMode == DragMode.NONE || currentDragId == 0L || dragContainerId < 0) {
+            return;
+        }
+        if (Minecraft.getInstance().player == null) {
+            return;
+        }
+        NeoForgeQuickShulkerNetwork.sendShulkerBundling(new NeoForgeShulkerBundlingPayload(
+            new ShulkerBundlingIntent(
+                ShulkerBundlingAction.END_MOUSE_DRAG,
+                END_DRAG_HOST_SLOT,
+                dragContainerId,
+                currentDragId
+            ),
+            ItemStack.EMPTY
+        ));
     }
 
     private static ShulkerBundlingIntent prepareBundlingIntent(

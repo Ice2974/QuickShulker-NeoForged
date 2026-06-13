@@ -32,6 +32,11 @@ public final class NeoForgeShulkerBundlingHandler {
             return;
         }
         pruneDragSessions(player);
+        if (intent.action() == ShulkerBundlingAction.END_MOUSE_DRAG) {
+            clearMatchingDragSession(player, intent);
+            clearCreativeServerCarried(player, intent, "end_mouse_drag");
+            return;
+        }
         if (!matchesCurrentContainer(player, intent)) {
             LOGGER.debug(
                 "Rejected NeoForge bundling intent for stale container: action={}, packetContainerId={}, currentContainerId={}, hostSlot={}",
@@ -60,6 +65,8 @@ public final class NeoForgeShulkerBundlingHandler {
             case MOUSE_DRAG_PICKUP_INSERT -> handleMouseDragPickupInsert(player, intent, cursorStack, dragSession);
             case EXTRACT -> handleExtract(player, intent, cursorStack, dragSession);
             case MOUSE_DRAG_EXTRACT -> handleMouseDragExtract(player, intent, cursorStack, dragSession);
+            case END_MOUSE_DRAG -> {
+            }
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
             case UNKNOWN -> LOGGER.debug("Rejected NeoForge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
         }
@@ -74,6 +81,7 @@ public final class NeoForgeShulkerBundlingHandler {
     public static void clearDragSession(ServerPlayer player) {
         if (player != null) {
             DRAG_SESSIONS.remove(player.getUUID());
+            clearCreativeServerCarried(player, null, "clear_drag_session");
         }
     }
 
@@ -335,9 +343,6 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static ItemStack resolvedCarried(ServerPlayer player, ItemStack cursorStack, DragSession dragSession) {
-        if (dragSession != null) {
-            return dragSession.carried.copy();
-        }
         if (player.getAbilities().instabuild) {
             return cursorStack == null ? ItemStack.EMPTY : cursorStack.copy();
         }
@@ -345,11 +350,7 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static void setCarried(ServerPlayer player, ItemStack stack, DragSession dragSession) {
-        ItemStack copy = stack.copy();
-        if (dragSession != null) {
-            dragSession.carried = copy.copy();
-        }
-        player.containerMenu.setCarried(copy);
+        player.containerMenu.setCarried(stack.copy());
     }
 
     private static boolean matchesCurrentContainer(ServerPlayer player, ShulkerBundlingIntent intent) {
@@ -367,7 +368,7 @@ public final class NeoForgeShulkerBundlingHandler {
 
     private static DragSession resolveDragSession(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
         ItemStack currentCarried = player.getAbilities().instabuild
-            ? (cursorStack == null ? ItemStack.EMPTY : cursorStack.copy())
+            ? cursorStack.copy()
             : player.containerMenu.getCarried().copy();
         if (!isSingleShulkerBox(currentCarried)) {
             LOGGER.debug("Rejected NeoForge mouse drag session due to non-single-shulker carried stack: action={}, hostSlot={}",
@@ -378,7 +379,13 @@ public final class NeoForgeShulkerBundlingHandler {
         long now = currentGameTime(player);
         DragSession session = DRAG_SESSIONS.get(player.getUUID());
         if (session == null || !session.matches(intent.containerId(), intent.dragId())) {
-            session = new DragSession(intent.containerId(), intent.dragId(), currentCarried, now);
+            if (intent.action() == ShulkerBundlingAction.MOUSE_DRAG_PICKUP_INSERT
+                || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_EXTRACT) {
+                LOGGER.debug("Rejected NeoForge mouse drag continuation without active session: action={}, hostSlot={}",
+                    intent.action(), intent.hostSlot());
+                return null;
+            }
+            session = new DragSession(intent.containerId(), intent.dragId(), now);
             DRAG_SESSIONS.put(player.getUUID(), session);
             return session;
         }
@@ -405,13 +412,17 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static boolean carriedStillMatches(ServerPlayer player, ItemStack expected, DragSession dragSession) {
-        if (dragSession != null) {
-            return ItemStack.matches(expected, dragSession.carried);
-        }
         if (player.getAbilities().instabuild) {
             return true;
         }
         return ItemStack.matches(expected, player.containerMenu.getCarried());
+    }
+
+    private static void clearMatchingDragSession(ServerPlayer player, ShulkerBundlingIntent intent) {
+        DragSession session = DRAG_SESSIONS.get(player.getUUID());
+        if (session != null && session.matches(intent.containerId(), intent.dragId())) {
+            DRAG_SESSIONS.remove(player.getUUID());
+        }
     }
 
     private static boolean isConservedPickupInsert(
@@ -490,11 +501,33 @@ public final class NeoForgeShulkerBundlingHandler {
         }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(
-                "NeoForge creative bundling {} kept server carried after sync: action={}, hostSlot={}, menuClass={}, menuCarried={}",
+                "NeoForge creative bundling {} kept server carried after sync until drag end: action={}, hostSlot={}, menuClass={}, menuCarried={}",
                 phase,
                 intent.action(),
                 intent.hostSlot(),
                 player.containerMenu.getClass().getName(),
+                describeStack(player.containerMenu.getCarried())
+            );
+        }
+    }
+
+    private static void clearCreativeServerCarried(ServerPlayer player, ShulkerBundlingIntent intent, String phase) {
+        if (!player.getAbilities().instabuild) {
+            return;
+        }
+        ItemStack serverCarried = player.containerMenu.getCarried();
+        if (serverCarried.isEmpty()) {
+            return;
+        }
+        player.containerMenu.setCarried(ItemStack.EMPTY);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                "NeoForge creative bundling {} cleared server-only carried: action={}, hostSlot={}, menuClass={}, previousMenuCarried={}, menuCarried={}",
+                phase,
+                intent == null ? ShulkerBundlingAction.UNKNOWN : intent.action(),
+                intent == null ? null : intent.hostSlot(),
+                player.containerMenu.getClass().getName(),
+                describeStack(serverCarried),
                 describeStack(player.containerMenu.getCarried())
             );
         }
@@ -511,13 +544,11 @@ public final class NeoForgeShulkerBundlingHandler {
         private final int containerId;
         private final long dragId;
         private final Set<ProcessedDragSlot> processedSlots = new HashSet<>();
-        private ItemStack carried;
         private long lastSeenGameTime;
 
-        private DragSession(int containerId, long dragId, ItemStack carried, long lastSeenGameTime) {
+        private DragSession(int containerId, long dragId, long lastSeenGameTime) {
             this.containerId = containerId;
             this.dragId = dragId;
-            this.carried = carried.copy();
             this.lastSeenGameTime = lastSeenGameTime;
         }
 

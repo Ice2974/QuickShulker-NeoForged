@@ -1,93 +1,67 @@
 # stage-1.0.0-p3.3-mouse-dragged-data-safety
 
-## 漏洞描述
+## 阶段目标
 
-本阶段处理 1.0.0 发布前阻塞级数据安全问题：
+本阶段处理 1.0.0 发布前 mouse dragged shulker bundling 的数据安全问题，重点覆盖快速右键拖拽收纳 / 放出时的吞物品、复制物品、旧 packet 和旧 carried stack 风险。
 
-- Forge 1.20.1 快速拖拽收纳时，被目标槽扣除的物品数量可能大于实际进入鼠标潜影盒的数量，表现为吞物品。
-- Forge 1.20.1 快速拖拽放出时，放出的物品数量可能大于潜影盒实际减少的数量，表现为复制物品。
-- NeoForge 1.21.1 快速拖拽后关闭背包时，鼠标携带的潜影盒存在消失风险。
-- NeoForge 1.21.1 偶发潜影盒复制的触发条件暂未完全明确，本阶段先按旧 packet、旧菜单和 carried stack 副本冲突做保守防护。
+本项目仍保持逐槽 packet 处理，不改为 batch，不实现 Bundle、末影箱 bundling 或其他新功能。
 
-## 原作对照
+## 阶段 3.3 已完成的修复
 
-已查看的原作文件：
+- `ShulkerBundlingIntent` 携带 `containerId`。
+- `ShulkerBundlingIntent` 携带 `dragId`。
+- Forge / NeoForge packet / payload 编解码同步传递 `containerId` 和 `dragId`。
+- Forge 使用 `consumerMainThread`，NeoForge 使用 `context.enqueueWork`，确保 bundling 菜单和物品读写在服务端线程执行。
+- 服务端按玩家 UUID 保存 DragSession，用于记录 `containerId`、`dragId`、`processedSlots` 和 `lastSeenGameTime`。
+- 同一 dragId 下同一 action + HostSlotRef 重复请求通过 `processedSlots` 去重。
+- 拖拽收纳写回前执行数量守恒校验：目标槽减少数量必须等于 carried shulker 内容增加数量。
+- 拖拽放出写回前执行数量守恒校验：放出 stack 数量必须等于 carried shulker 内容减少数量。
+- 服务端收到 bundling 请求后先校验 packet `containerId` 必须匹配当前 `player.containerMenu.containerId`。
+- screen close、鼠标释放、screen init、menu/containerId 变化时，客户端发送 `END_MOUSE_DRAG` 清理服务端 DragSession。
 
-- `references/quickshulker-1.21.1/src/main/java/net/kyrptonaught/quickshulker/util/MouseDraggedHandler.java`
-- `references/quickshulker-1.21.1/src/main/java/net/kyrptonaught/quickshulker/util/BundleHelper.java`
-- `references/quickshulker-1.21.1/src/main/java/net/kyrptonaught/quickshulker/network/QuickBundlePacket.java`
-- `references/quickshulker-26.1-neo/src/main/java/net/kyrptonaught/quickshulker/util/MouseDraggedHandler.java`
-- `references/quickshulker-26.1-neo/src/main/java/net/kyrptonaught/quickshulker/util/BundleHelper.java`
-- `references/quickshulker-26.1-neo/src/main/java/net/kyrptonaught/quickshulker/network/QuickBundlePacket.java`
+## 本补丁发现的问题
 
-原作 `MouseDraggedHandler` 在客户端拖过新槽位时按槽触发一次点击路径，不是拖拽结束后 batch 提交；它只维护客户端 `DRAGGED_SLOTS` 去重。原作 `BundleHelper` 使用存储 API transaction 和槽位 `safeTake` / `safeInsert` 一类原子操作，让单次槽位移动在一个事务边界内完成。原作网络包在服务端线程执行；NeoForge 26.1 的 packet 处理使用 `context.enqueueWork`。
+阶段 3.3 的 containerId、dragId、processedSlots、守恒校验和服务端线程处理方向正确，可以明显降低 Forge 1.20.1 快速拖拽吞物品 / 复制物品主问题。
 
-当前项目没有 Fabric/NeoForge Storage transaction 可直接照搬，Forge 1.20.1 也以 NBT 写回为主。因此本阶段采用等价替代：
+本补丁继续确认以下残留 / 回归风险：
 
-- 仍保留逐槽 packet，不改成 batch。
-- 每个服务端槽位处理先复制真实 carried stack 和真实目标槽，再计算结果。
-- 写回前重新确认 containerId、目标槽、carried stack 和安全写回条件。
-- 写回前后做数量守恒校验，失败则整次槽位操作拒绝。
-- 增加服务端 drag session 和 dragId 去重，避免只依赖客户端 `DRAGGED_HOST_SLOTS`。
+- 旧实现中服务端 `DragSession.carried` 可能作为旧 carried shulker 副本被继续使用。如果关闭背包或菜单变化后旧拖拽包仍到达，且 `containerId` 仍匹配，尤其是 `InventoryMenu containerId=0`，服务端可能继续用旧 carried 副本处理请求。
+- 仅靠 `containerId=0` 不能完全识别 InventoryMenu screen close 后的旧拖拽请求，必须结合 dragId 生命周期、END_MOUSE_DRAG 清理和当前真实 carried 校验。
+- 2026-06-13 日志回归显示：NeoForge 1.21.1 的 `END_MOUSE_DRAG` 会发送空 cursor stack，但 payload 使用 `ItemStack.STREAM_CODEC`，导致 `EncoderException: Empty ItemStack not allowed` 并断开连接。
+- 2026-06-13 日志回归显示：创造模式右键收纳 / 放出后，如果服务端把用于同步的临时 carried shulker 留在 `InventoryMenu`，关闭背包时会额外结算出一个潜影盒副本。
+- 2026-06-13 后续 debug.log 显示：如果在创造模式 bundling 同步后立刻清空服务端 carried 并广播 full state，客户端鼠标上的潜影盒会被同步为空，表现为潜影盒消失，拖拽功能也无法继续使用。
 
-涉及参考项目思路但没有整段复制原作实现。是否需要更新 `THIRD_PARTY_NOTICES.md` 仍建议维护者在发布前人工确认。
+## 本补丁修复策略
 
-## 日志分析
+- DragSession 不再保存 carried `ItemStack`。
+- DragSession 只保留：
+  - `containerId`
+  - `dragId`
+  - `processedSlots`
+  - `lastSeenGameTime`
+- 生存 / 普通服务端拖拽路径每次都重新读取当前真实 `player.containerMenu.getCarried()`。
+- `resolvedCarried(..., dragSession)` 不再从 DragSession 返回 carried 副本。
+- `carriedStillMatches(..., dragSession)` 不再比较 session carried，而是重新比较当前真实 `player.containerMenu.getCarried()`。
+- `setCarried(..., dragSession)` 只更新 `player.containerMenu.setCarried(updated)`，不把 updated carried 写入 DragSession。
+- 拖拽延续包 `MOUSE_DRAG_PICKUP_INSERT` / `MOUSE_DRAG_EXTRACT` 到达时如果没有匹配的 active DragSession，服务端直接拒绝，不为旧延续包重建 session。
+- 服务端收到 `END_MOUSE_DRAG` 后按 `containerId + dragId` 清理匹配 DragSession。
+- NeoForge shulker bundling payload 改用 `ItemStack.OPTIONAL_STREAM_CODEC`，允许 `END_MOUSE_DRAG` 携带空 cursor stack。
+- 创造模式 bundling 操作完成后不再立刻广播空 carried。服务端保留临时 carried 直到客户端发送 `END_MOUSE_DRAG`，然后仅在服务端清空该临时 carried，不向客户端广播空鼠标栈。
+- `clearDragSession` 收尾路径也会清理创造模式服务端临时 carried，用于登出、死亡、切维度等异常收尾。
 
-已查看日志：
+## 创造模式策略
 
-- `.minecraft/versions/1.20.1/logs/latest.log`
-- `.minecraft/versions/1.20.1/logs/debug.log`
-- `.minecraft/versions/1.21.1/logs/latest.log`
-- `.minecraft/versions/1.21.1/logs/debug.log`
+本补丁恢复创造模式 mouse dragged 收纳 / 放出。
 
-检索关键字包括 `quickshulker`、`shulker`、`mouse`、`drag`、`carried`、`slot`、`container`、`packet`、`disconnect`、`exception`、`error`、`warn`。
+创造模式与生存模式的 carried 来源不同：
 
-Forge 日志未发现直接异常、崩溃或断连栈；但 debug 中能看到创造模式拖拽时服务端 `menuCarried=<empty>`、payload 携带 `shulker_box x1`，说明旧逻辑会依赖客户端上传的 cursor stack 副本继续处理。NeoForge 日志同样出现该现象，并且在 `debug.log` 约 6891、6909、6913 行附近可以看到 `payloadCursor=minecraft:shulker_box x1`、`resolvedCarried=minecraft:shulker_box x1`、`menuCarried=<empty>` 的组合。NeoForge `latest.log` 仅有普通连接断开记录，未发现可直接归因于本问题的异常栈。
+- 生存 / 普通服务端路径继续以服务端当前 `player.containerMenu.getCarried()` 为权威状态。
+- 创造模式的服务端 `InventoryMenu` 可能没有表达客户端 CreativeModeInventoryScreen 的临时鼠标栈，因此创造模式 bundling 继续使用客户端上传的 `cursorStack` 作为创造界面临时 cursor 表达。
+- 创造模式 DragSession 仍不保存 carried，也不把 DragSession 当作实际写回来源。
+- 创造模式操作后会先向客户端同步更新后的 carried shulker，保证右键收纳 / 放出和后续拖拽可以继续使用。
+- 创造模式鼠标右键释放 / screen close / menu change 触发 `END_MOUSE_DRAG` 后，服务端只清理自己的临时 carried，避免关闭背包时复制潜影盒，同时不广播空 carried，避免客户端潜影盒消失。
 
-## 根因分析
-
-Forge 1.20.1 的数量不守恒根因是 mouse dragged 逐槽 packet 处理没有服务端 drag session，也没有把“目标槽扣减”和“carried shulker 内容写回”放在一个可验证的守恒边界内。快速拖拽时多个请求都可能基于客户端 cursor stack 或过期 carried 状态处理，导致目标槽和潜影盒内容更新不是同一份状态的连续演进。
-
-NeoForge 1.21.1 的盒子消失/复制风险根因没有完全复现到唯一路径，但日志和代码共同显示旧逻辑存在两个危险点：服务端 packet 没有显式绑定当前 menu/container，且创造模式会把 payload cursor stack 当作 carried shulker 来源。快速关闭背包或切换菜单后，旧 packet 若继续处理，就可能对已经不再对应当前菜单的 carried shulker 副本做写回或清空。
-
-## 修复策略
-
-- `ShulkerBundlingIntent` 增加 `containerId` 和 `dragId`。
-- Forge / NeoForge 客户端在开始右键拖拽时生成非 0 `dragId`，后续每个拖拽槽位携带同一个 `dragId` 和当前 `containerId`。
-- 客户端在鼠标释放、screen 不再是容器界面、containerId 变化时清理拖拽状态。
-- 服务端收到 bundling packet 后先校验 `intent.containerId()` 必须等于当前 `player.containerMenu.containerId`，不匹配直接拒绝。
-- 服务端按玩家 UUID 保存 drag session，记录 `containerId`、`dragId`、action、HostSlotRef 已处理集合和 session carried shulker。
-- 同一 dragId 下同一 action + HostSlotRef 重复请求直接忽略。
-- 服务端 drag session 在玩家 tick 中按超时和 menuId 变化清理，并在登出、重生、切维度时立即清理。
-- Forge 网络原有 `consumerMainThread` 保持不变；NeoForge 服务端 packet 改为 `context.enqueueWork`，确保菜单和物品读写在服务端线程顺序执行。
-- 拖拽收纳和拖拽放出都使用逐槽事务化处理，不采用 batch。
-- 每个槽位写回前重新确认 carried shulker、目标槽状态和安全写回条件。
-- 每个成功槽位提交后调用 menu/inventory 同步。
-
-## 守恒校验
-
-拖拽收纳：
-
-- 读取 `targetBefore` 和 `shulkerBefore`。
-- 计算 helper 结果但先不写回真实槽位。
-- 要求 `targetBefore - updatedTarget.getCount()` 等于 `count(updatedCarried) - shulkerBefore`。
-- 守恒失败、目标槽变化、carried stack 变化或不可安全写回时，拒绝本槽操作。
-
-拖拽放出：
-
-- 目标槽必须为空。
-- 读取 `shulkerBefore`。
-- 计算 extracted stack 和 updated carried shulker。
-- 要求 `extractedStack.getCount()` 等于 `shulkerBefore - count(updatedCarried)`。
-- 守恒失败、目标槽不再为空、carried stack 变化或不可安全写回时，拒绝本槽操作。
-
-## 已支持场景
-
-- 鼠标携带单个潜影盒，右键拖过多个安全普通物品槽，将物品收纳进鼠标潜影盒。
-- 鼠标携带单个潜影盒，右键拖过多个安全空槽，从潜影盒中依次放出物品。
-
-## 未支持场景
+## 未实现范围
 
 - Bundle。
 - 末影箱 bundling。
@@ -98,66 +72,39 @@ NeoForge 1.21.1 的盒子消失/复制风险根因没有完全复现到唯一路
 
 ## 修改文件
 
-- `common/src/main/java/com/ice2974/quickshulkerneoforged/common/network/ShulkerBundlingIntent.java`
-- `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/ForgeQuickShulkerEvents.java`
-- `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/ForgeShulkerBundlingHandler.java`
+- `common/src/main/java/com/ice2974/quickshulkerneoforged/common/network/ShulkerBundlingAction.java`
 - `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/client/ForgeQuickShulkerClient.java`
-- `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/network/ForgeQuickShulkerNetwork.java`
-- `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/network/ForgeShulkerBundlingPacket.java`
-- `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/NeoForgeQuickShulkerEvents.java`
-- `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/NeoForgeShulkerBundlingHandler.java`
+- `versions/forge-1.20.1/src/main/java/com/ice2974/quickshulkerneoforged/forge/ForgeShulkerBundlingHandler.java`
 - `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/client/NeoForgeQuickShulkerClient.java`
-- `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/network/NeoForgeQuickShulkerNetwork.java`
+- `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/NeoForgeShulkerBundlingHandler.java`
 - `versions/neoforge-1.21.1/src/main/java/com/ice2974/quickshulkerneoforged/neoforge/network/NeoForgeShulkerBundlingPayload.java`
 - `docs/stage-1.0.0-p3.3-mouse-dragged-data-safety.md`
 
 ## 验证命令和结果
 
+本节只记录已经运行的命令；未运行的命令不能写成已通过。
+
+- `git diff --check`
+  - 通过；仅有 Git 工作区 LF/CRLF 提示。
 - `.\gradlew.bat :forge-1.20.1:compileJava`
   - 通过。
 - `.\gradlew.bat :neoforge-1.21.1:compileJava`
-  - 通过，仅有既有 deprecated API 提示。
+  - 通过；仅有既有 deprecated API 提示。
 - `.\gradlew.bat :forge-1.20.1:build`
   - 通过。
 - `.\gradlew.bat :neoforge-1.21.1:build`
   - 通过。
-- `git diff --check`
-  - 通过。
 
 ## 未验证内容
 
-- 未进行 Minecraft 客户端内真实拖拽实机测试。
-- 未进行 Forge / NeoForge 专用服务器多人测试。
-- 未复现 NeoForge 偶发潜影盒复制的唯一触发路径，因此不能声明“已确认根因唯一且完全复现修复”。
-- 未确认许可证 / NOTICE 是否需要因参考原作思路而更新。
+- 尚未进行 Minecraft 客户端内真实拖拽实机测试。
+- 尚未进行 Forge / NeoForge 专用服务器多人测试。
+- 尚未确认创造模式恢复 mouse dragged 后的最终玩家体验是否需要继续调整。
+- 尚未确认许可证 / NOTICE 是否需要因参考原作思路而更新。
 
 ## 待人工确认项
 
-- Forge 1.20.1 和 NeoForge 1.21.1 实机快速拖拽收纳 / 放出是否在生存、创造和服务器环境下均无吞物品、复制物品、盒子消失。
+- Forge 1.20.1 与 NeoForge 1.21.1 实机快速拖拽收纳 / 放出是否在生存、创造和服务器环境下均无吞物品、复制物品、潜影盒消失。
 - 快速拖拽过程中关闭背包、切换菜单、死亡、掉线、切维度后的同步表现。
+- 创造模式 mouse dragged 恢复后是否符合最终发布体验预期。
 - 是否需要更新 `THIRD_PARTY_NOTICES.md` 或发布说明中的来源说明。
-- `docs/stage-1.0.0-p3-mouse-dragged.md` 和 `docs/stage-1.0.0-p3.1-bundling-menu-slots.md` 是较早阶段文档，部分内容已不代表当前 p3.3 后行为；当前行为以源码和本文档为准。
-
-## 追加排查：创造模式关闭界面丢失鼠标潜影盒
-
-用户反馈前述数量守恒问题修复后，Forge 1.20.1 和 NeoForge 1.21.1 在创造模式拖拽收纳或放出过程中关闭背包界面，鼠标携带的潜影盒仍可能消失。
-
-本次继续查看：
-
-- `.minecraft/versions/1.20.1/logs/latest.log`
-- `.minecraft/versions/1.20.1/logs/debug.log`
-- `.minecraft/versions/1.21.1/logs/latest.log`
-- `.minecraft/versions/1.21.1/logs/debug.log`
-
-日志未发现新的崩溃栈或直接异常。关键线索出现在 debug 日志：创造模式 bundling 服务端处理时，packet 中 `payloadCursor` 和解析后的 `resolvedCarried` 仍是 `shulker_box x1`，但 `menuCarried` 初始为 `<empty>`；事务写回后日志显示 `after setCarried` 已变为潜影盒，随后又出现 `cleared server carried after sync` 并把 `menuCarried` 清回 `<empty>`。
-
-代码层面根因是双平台 `clearCreativeServerCarriedAfterSync` 在创造模式且当前菜单是 `inventoryMenu` 时，无条件执行 `player.containerMenu.setCarried(ItemStack.EMPTY)`。这会让服务端权威 carried stack 在拖拽操作后变成空；如果玩家此时关闭创造背包，关闭流程会看到服务端鼠标为空，从而可能丢失客户端仍显示携带的潜影盒。
-
-修复策略：
-
-- Forge 1.20.1 和 NeoForge 1.21.1 都移除创造模式 bundling 后的服务端 carried 清空。
-- 保留事务化写回后的 `player.containerMenu.setCarried(updatedCarried)` 结果作为服务端权威状态。
-- 继续执行 `broadcastChanges()` / `broadcastFullState()`，让客户端显示由服务端最新 carried stack 覆盖。
-- 将收尾方法改名为 `finishCreativeServerCarriedAfterSync`，只记录当前菜单类型和 carried 状态，不再修改物品。
-
-该修复没有改变逐槽事务、dragId/session 去重、containerId 校验和数量守恒逻辑。仍需实机确认创造模式关闭背包时潜影盒不再消失，且不会重新引入复制。
