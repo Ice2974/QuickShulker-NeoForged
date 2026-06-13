@@ -424,6 +424,10 @@ public final class ForgeShulkerBundlingHandler {
         }
 
         ItemStack carried = resolvedCarried(player, cursorStack);
+        if (isEnderChest(carried)) {
+            LOGGER.debug("Rejected Forge ender chest insert because carried ender chest cannot be inserted into ender chest: carried={}", describeStack(carried));
+            return;
+        }
         if (carried.isEmpty() || !canInsertIntoEnderChest(carried)) {
             LOGGER.debug("Rejected Forge ender chest insert due to invalid carried stack: carried={}", describeStack(carried));
             return;
@@ -494,6 +498,11 @@ public final class ForgeShulkerBundlingHandler {
             return;
         }
         ItemStack targetStack = ForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();
+        if (isEnderChest(targetStack)) {
+            LOGGER.debug("Rejected Forge ender chest pickup insert because target ender chest cannot be inserted into ender chest: hostSlot={}, target={}",
+                intent.hostSlot(), describeStack(targetStack));
+            return;
+        }
         if (targetStack.isEmpty() || !canInsertIntoEnderChest(targetStack)) {
             LOGGER.debug("Rejected Forge ender chest pickup insert due to invalid target stack: hostSlot={}, target={}",
                 intent.hostSlot(), describeStack(targetStack));

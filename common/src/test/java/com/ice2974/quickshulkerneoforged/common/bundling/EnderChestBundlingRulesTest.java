@@ -69,6 +69,17 @@ class EnderChestBundlingRulesTest {
     }
 
     @Test
+    void carriedEnderChestHoveringEnderChestDoesNotResolveToBundling() {
+        Optional<EnderChestBundlingOperation> operation = EnderChestBundlingRules.resolveOperation(
+            ENDER_CHEST_1,
+            ENDER_CHEST_1,
+            ADAPTER
+        );
+
+        assertEquals(Optional.empty(), operation);
+    }
+
+    @Test
     void carriedSingleEnderChestHoveringEmptySlotResolvesToExtract() {
         Optional<EnderChestBundlingOperation> operation = EnderChestBundlingRules.resolveOperation(
             ENDER_CHEST_1,
@@ -108,6 +119,36 @@ class EnderChestBundlingRulesTest {
         assertEquals(ShulkerBundlingFailure.NO_SPACE, result.failure());
         assertEquals(SHULKER_1, result.updatedInputStack().orElseThrow());
         assertEquals(contents(STONE_64, DIRT_8), player.enderChestContents());
+    }
+
+    @Test
+    void insertEnderChestIntoPlayerEnderChestFailsSafely() {
+        FakePlayer player = new FakePlayer(contents(EMPTY, STONE_16));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+        List<FakeStack> before = contents(EMPTY, STONE_16);
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.insert(player, ENDER_CHEST_1);
+
+        assertFalse(result.success());
+        assertFalse(result.changed());
+        assertEquals(ShulkerBundlingFailure.UNSUPPORTED_ITEM, result.failure());
+        assertEquals(ENDER_CHEST_1, result.updatedInputStack().orElseThrow());
+        assertEquals(before, player.enderChestContents());
+    }
+
+    @Test
+    void pickupInsertEnderChestIntoPlayerEnderChestFailsSafely() {
+        FakePlayer player = new FakePlayer(contents(EMPTY, STONE_16));
+        PlayerEnderChestBundlingService<FakePlayer, FakeStack> service = service();
+        List<FakeStack> before = contents(EMPTY, STONE_16);
+
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = service.pickupInsert(player, ENDER_CHEST_1);
+
+        assertFalse(result.success());
+        assertFalse(result.changed());
+        assertEquals(ShulkerBundlingFailure.UNSUPPORTED_ITEM, result.failure());
+        assertEquals(ENDER_CHEST_1, result.updatedInputStack().orElseThrow());
+        assertEquals(before, player.enderChestContents());
     }
 
     @Test
@@ -385,7 +426,7 @@ class EnderChestBundlingRulesTest {
 
         @Override
         public boolean canInsertIntoEnderChest(FakeStack stack) {
-            return !stack.isEmpty() && stack.canFitInsideContainers();
+            return !stack.isEmpty() && !isEnderChest(stack);
         }
     }
 }

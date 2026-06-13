@@ -430,6 +430,11 @@ public final class ForgeQuickShulkerClient {
 
         ItemStack carried = containerScreen.getMenu().getCarried();
         ItemStack hoveredStack = hoveredSlot.getItem();
+        if (isCarriedEnderChestHoveringEnderChest(carried, hoveredStack)) {
+            clearMouseDrag();
+            suppressNextInventoryRightRelease = false;
+            return false;
+        }
         ShulkerBundlingAction action;
         if (dragMode == DragMode.PICKUP_INTO_CARRIED_SHULKER
             && ForgeQuickShulkerConfig.view().supportsBundlingPickup()
@@ -651,6 +656,9 @@ public final class ForgeQuickShulkerClient {
         if (!ForgeQuickShulkerConfig.view().quickEnderChest()) {
             return Optional.empty();
         }
+        if (isCarriedEnderChestHoveringEnderChest(carried, hoveredStack)) {
+            return Optional.empty();
+        }
         if (ForgeQuickShulkerConfig.view().supportsBundlingExtract()
             && hoveredStack.isEmpty()
             && isSingleEnderChest(carried)) {
@@ -689,6 +697,10 @@ public final class ForgeQuickShulkerClient {
 
     private static boolean canInsertIntoEnderChest(ItemStack stack) {
         return !stack.isEmpty() && !isEnderChest(stack);
+    }
+
+    private static boolean isCarriedEnderChestHoveringEnderChest(ItemStack carried, ItemStack hoveredStack) {
+        return isSingleEnderChest(carried) && isEnderChest(hoveredStack);
     }
 
     private static boolean isShulkerBox(ItemStack stack) {

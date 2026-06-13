@@ -1,4 +1,4 @@
-# stage-1.0.0-p6.2-ender-chest-drag-config-gate-fix
+# stage-1.0.0-p6.1-ender-chest-drag-config-gate-fix
 
 本阶段修复末影箱 mouse dragged 续包在服务端可能绕过 `quickEnderChest()` 开关的问题。
 

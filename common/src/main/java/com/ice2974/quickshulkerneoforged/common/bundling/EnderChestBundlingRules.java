@@ -15,10 +15,14 @@ public final class EnderChestBundlingRules {
         if (adapter.isEmpty(hoveredStack) && adapter.isSingleEnderChest(carriedStack)) {
             return Optional.of(EnderChestBundlingOperation.EXTRACT);
         }
-        if (adapter.isSingleEnderChest(hoveredStack) && !adapter.isEmpty(carriedStack)) {
+        if (adapter.isSingleEnderChest(hoveredStack)
+            && !adapter.isEmpty(carriedStack)
+            && adapter.canInsertIntoEnderChest(carriedStack)) {
             return Optional.of(EnderChestBundlingOperation.INSERT);
         }
-        if (adapter.isSingleEnderChest(carriedStack) && !adapter.isEmpty(hoveredStack)) {
+        if (adapter.isSingleEnderChest(carriedStack)
+            && !adapter.isEmpty(hoveredStack)
+            && adapter.canInsertIntoEnderChest(hoveredStack)) {
             return Optional.of(EnderChestBundlingOperation.PICKUP_INSERT);
         }
         return Optional.empty();

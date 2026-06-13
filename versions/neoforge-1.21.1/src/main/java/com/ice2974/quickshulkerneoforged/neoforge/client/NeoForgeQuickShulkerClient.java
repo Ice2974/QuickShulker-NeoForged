@@ -439,6 +439,11 @@ public final class NeoForgeQuickShulkerClient {
 
         ItemStack carried = containerScreen.getMenu().getCarried();
         ItemStack hoveredStack = hoveredSlot.getItem();
+        if (isCarriedEnderChestHoveringEnderChest(carried, hoveredStack)) {
+            clearMouseDrag();
+            suppressNextInventoryRightRelease = false;
+            return false;
+        }
         ShulkerBundlingAction action;
         if (dragMode == DragMode.PICKUP_INTO_CARRIED_SHULKER
             && NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()
@@ -660,6 +665,9 @@ public final class NeoForgeQuickShulkerClient {
         if (!NeoForgeQuickShulkerConfig.view().quickEnderChest()) {
             return Optional.empty();
         }
+        if (isCarriedEnderChestHoveringEnderChest(carried, hoveredStack)) {
+            return Optional.empty();
+        }
         if (NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()
             && hoveredStack.isEmpty()
             && isSingleEnderChest(carried)) {
@@ -698,6 +706,10 @@ public final class NeoForgeQuickShulkerClient {
 
     private static boolean canInsertIntoEnderChest(ItemStack stack) {
         return !stack.isEmpty() && !isEnderChest(stack);
+    }
+
+    private static boolean isCarriedEnderChestHoveringEnderChest(ItemStack carried, ItemStack hoveredStack) {
+        return isSingleEnderChest(carried) && isEnderChest(hoveredStack);
     }
 
     private static boolean isShulkerBox(ItemStack stack) {
