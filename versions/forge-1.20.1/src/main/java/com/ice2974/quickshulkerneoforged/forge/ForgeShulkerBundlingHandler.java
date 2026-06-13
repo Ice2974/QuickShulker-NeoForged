@@ -386,7 +386,7 @@ public final class ForgeShulkerBundlingHandler {
     }
 
     private static void handleEnderChestBundling(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack, DragSession dragSession) {
-        if (!ForgeQuickShulkerConfig.view().quickEnderChest()) {
+        if (!supportsEnderChestBundling()) {
             return;
         }
         if (isCurrentQuickOpenHost(player, intent)) {
@@ -402,7 +402,14 @@ public final class ForgeShulkerBundlingHandler {
         }
     }
 
+    private static boolean supportsEnderChestBundling() {
+        return ForgeQuickShulkerConfig.view().quickEnderChest();
+    }
+
     private static void handleEnderChestInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!supportsEnderChestBundling()) {
+            return;
+        }
         if (!ForgeQuickShulkerConfig.view().supportsBundlingInsert()) {
             return;
         }
@@ -470,6 +477,9 @@ public final class ForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
+        if (!supportsEnderChestBundling()) {
+            return;
+        }
         if (!ForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
             return;
         }
@@ -542,6 +552,9 @@ public final class ForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
+        if (!supportsEnderChestBundling()) {
+            return;
+        }
         if (!ForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             return;
         }

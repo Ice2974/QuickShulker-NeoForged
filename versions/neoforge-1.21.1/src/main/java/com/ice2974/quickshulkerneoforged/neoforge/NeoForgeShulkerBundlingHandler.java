@@ -362,7 +362,7 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private static void handleEnderChestBundling(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack, DragSession dragSession) {
-        if (!NeoForgeQuickShulkerConfig.view().quickEnderChest()) {
+        if (!supportsEnderChestBundling()) {
             return;
         }
         if (isCurrentQuickOpenHost(player, intent)) {
@@ -378,7 +378,14 @@ public final class NeoForgeShulkerBundlingHandler {
         }
     }
 
+    private static boolean supportsEnderChestBundling() {
+        return NeoForgeQuickShulkerConfig.view().quickEnderChest();
+    }
+
     private static void handleEnderChestInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!supportsEnderChestBundling()) {
+            return;
+        }
         if (!NeoForgeQuickShulkerConfig.view().supportsBundlingInsert()) {
             return;
         }
@@ -446,6 +453,9 @@ public final class NeoForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
+        if (!supportsEnderChestBundling()) {
+            return;
+        }
         if (!NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
             return;
         }
@@ -518,6 +528,9 @@ public final class NeoForgeShulkerBundlingHandler {
         ItemStack cursorStack,
         DragSession dragSession
     ) {
+        if (!supportsEnderChestBundling()) {
+            return;
+        }
         if (!NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
             return;
         }
