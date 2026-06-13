@@ -104,6 +104,18 @@ class ShulkerBundlingRulesTest {
     }
 
     @Test
+    void extractReturnsLastNonEmptySlotStack() {
+        ShulkerBundlingResult<List<FakeStack>, FakeStack> result = ShulkerBundlingRules.extractLastStack(
+            contents(STONE_16, DIRT_8, EMPTY),
+            ADAPTER
+        );
+
+        assertTrue(result.success());
+        assertEquals(DIRT_8, result.extractedStack().orElseThrow());
+        assertTrue(result.updatedContainerStack().orElseThrow().get(1).isEmpty());
+    }
+
+    @Test
     void extractFromEmptyShulkerFails() {
         ShulkerBundlingResult<List<FakeStack>, FakeStack> result = ShulkerBundlingRules.extractFirstStack(
             contents(EMPTY, EMPTY),

@@ -103,6 +103,40 @@ public final class NeoForgeShulkerBundlingHelper {
         return mapSingleContainerResult(ruleResult, updatedShulker, writeResult);
     }
 
+    public ShulkerBundlingResult<ItemStack, ItemStack> extractLastStack(ItemStack shulkerStack) {
+        ShulkerBundlingResult<ItemStack, ItemStack> validationFailure =
+            validateSingleShulker(shulkerStack, true, "Cannot extract from a non-single shulker host.");
+        if (validationFailure != null) {
+            return validationFailure;
+        }
+
+        ItemStack updatedShulker = shulkerStack.copy();
+        ShulkerBundlingResult<List<ItemStack>, ItemStack> ruleResult = ShulkerBundlingRules.extractLastStack(
+            copyToList(contentAccess.readItemStacks(updatedShulker)),
+            STACK_ADAPTER
+        );
+        if (!ruleResult.changed()) {
+            return new ShulkerBundlingResult<>(
+                false,
+                false,
+                ruleResult.failure(),
+                0,
+                Optional.of(updatedShulker),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                ruleResult.detail()
+            );
+        }
+
+        ContentWriteResult writeResult = contentAccess.writeItemStacks(
+            updatedShulker,
+            toNonNullList(ruleResult.updatedContainerStack().orElseThrow())
+        );
+        return mapSingleContainerResult(ruleResult, updatedShulker, writeResult);
+    }
+
     // Callers must ensure source and target do not point at the same live host slot before applying results.
     public ShulkerBundlingResult<ItemStack, ItemStack> transferBetweenShulkers(ItemStack sourceShulker, ItemStack targetShulker) {
         ShulkerBundlingResult<ItemStack, ItemStack> sourceFailure =

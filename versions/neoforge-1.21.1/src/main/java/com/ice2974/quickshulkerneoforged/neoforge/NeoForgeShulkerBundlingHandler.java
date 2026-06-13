@@ -249,7 +249,9 @@ public final class NeoForgeShulkerBundlingHandler {
         }
         int shulkerBefore = countShulkerItems(carried);
 
-        ShulkerBundlingResult<ItemStack, ItemStack> result = HELPER.extractFirstStack(carried);
+        ShulkerBundlingResult<ItemStack, ItemStack> result = mouseDragged
+            ? HELPER.extractLastStack(carried)
+            : HELPER.extractFirstStack(carried);
         if (!result.changed() || result.updatedContainerStack().isEmpty() || result.extractedStack().isEmpty()) {
             LOGGER.debug("Rejected NeoForge extract after helper validation: failure={}, detail={}", result.failure(), result.detail());
             return;

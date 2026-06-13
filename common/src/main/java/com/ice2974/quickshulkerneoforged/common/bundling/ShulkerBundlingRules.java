@@ -157,6 +157,47 @@ public final class ShulkerBundlingRules {
         );
     }
 
+    // Mouse dragged extract follows the original tail-first slot scan order.
+    public static <S> ShulkerBundlingResult<List<S>, S> extractLastStack(
+        List<S> originalContents,
+        ShulkerBundlingStackAdapter<S> adapter
+    ) {
+        List<S> contents = copyContents(originalContents, adapter);
+        for (int i = contents.size() - 1; i >= 0; i--) {
+            S existing = contents.get(i);
+            if (adapter.isEmpty(existing)) {
+                continue;
+            }
+            S extracted = adapter.copy(existing);
+            contents.set(i, adapter.empty());
+            return new ShulkerBundlingResult<>(
+                true,
+                true,
+                ShulkerBundlingFailure.NONE,
+                adapter.getCount(extracted),
+                Optional.of(contents),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.of(extracted),
+                "Extracted the last non-empty slot stack from shulker contents."
+            );
+        }
+
+        return new ShulkerBundlingResult<>(
+            false,
+            false,
+            ShulkerBundlingFailure.NO_ITEMS_TO_EXTRACT,
+            0,
+            Optional.of(contents),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            "Shulker contents were empty."
+        );
+    }
+
     public static <S> ShulkerBundlingResult<List<S>, S> transferContents(
         List<S> originalSourceContents,
         List<S> originalTargetContents,
