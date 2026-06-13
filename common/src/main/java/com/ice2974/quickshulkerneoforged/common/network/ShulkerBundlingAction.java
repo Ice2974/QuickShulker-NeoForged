@@ -9,6 +9,9 @@ public enum ShulkerBundlingAction {
     MOUSE_DRAG_EXTRACT,
     END_MOUSE_DRAG,
     TRANSFER,
+    ENDER_CHEST_INSERT,
+    ENDER_CHEST_PICKUP_INSERT,
+    ENDER_CHEST_EXTRACT,
     UNKNOWN;
 
     public static ShulkerBundlingAction fromSerializedName(String value) {

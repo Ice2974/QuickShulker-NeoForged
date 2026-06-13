@@ -1,19 +1,27 @@
 package com.ice2974.quickshulkerneoforged.neoforge;
 
+import com.ice2974.quickshulkerneoforged.common.bundling.EnderChestBundlingRules;
+import com.ice2974.quickshulkerneoforged.common.bundling.EnderChestBundlingStackAdapter;
+import com.ice2974.quickshulkerneoforged.common.bundling.PlayerEnderChestBundlingService;
 import com.ice2974.quickshulkerneoforged.common.bundling.ShulkerBundlingResult;
+import com.ice2974.quickshulkerneoforged.common.content.ContentWriteResult;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingAction;
 import com.ice2974.quickshulkerneoforged.common.network.ShulkerBundlingIntent;
 import com.ice2974.quickshulkerneoforged.common.open.HostIdentity;
 import com.ice2974.quickshulkerneoforged.common.open.HostSlotRef;
+import com.ice2974.quickshulkerneoforged.common.open.HostStorageScope;
 import com.ice2974.quickshulkerneoforged.neoforge.network.NeoForgeQuickShulkerNetwork;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 import org.slf4j.Logger;
@@ -22,6 +30,13 @@ import org.slf4j.LoggerFactory;
 public final class NeoForgeShulkerBundlingHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(NeoForgeShulkerBundlingHandler.class);
     private static final NeoForgeShulkerBundlingHelper HELPER = new NeoForgeShulkerBundlingHelper();
+    private static final NeoForgePlayerEnderChestContentAccess ENDER_CHEST_ACCESS = new NeoForgePlayerEnderChestContentAccess();
+    private static final EnderChestBundlingStackAdapter<ItemStack> ENDER_CHEST_ADAPTER = new EnderChestItemStackAdapter();
+    private static final PlayerEnderChestBundlingService<net.minecraft.world.entity.player.Player, ItemStack>
+        ENDER_CHEST_SERVICE = new PlayerEnderChestBundlingService<>(
+            ENDER_CHEST_ACCESS,
+            ENDER_CHEST_ADAPTER
+        );
     private static final int DRAG_SESSION_TIMEOUT_TICKS = 200;
     private static final Map<UUID, DragSession> DRAG_SESSIONS = new HashMap<>();
 
@@ -48,6 +63,11 @@ public final class NeoForgeShulkerBundlingHandler {
             );
             return;
         }
+        if (isEnderChestBundlingAction(intent.action())) {
+            DRAG_SESSIONS.remove(player.getUUID());
+            handleEnderChestBundling(player, intent, cursorStack);
+            return;
+        }
 
         DragSession dragSession = null;
         if (isDragSessionIntent(intent)) {
@@ -69,6 +89,8 @@ public final class NeoForgeShulkerBundlingHandler {
             case END_MOUSE_DRAG -> {
             }
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
+            case ENDER_CHEST_INSERT, ENDER_CHEST_PICKUP_INSERT, ENDER_CHEST_EXTRACT -> {
+            }
             case UNKNOWN -> LOGGER.debug("Rejected NeoForge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
         }
     }
@@ -334,6 +356,167 @@ public final class NeoForgeShulkerBundlingHandler {
         finishCreativeServerCarriedAfterSync(player, intent, "transfer");
     }
 
+    private static void handleEnderChestBundling(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!NeoForgeQuickShulkerConfig.view().quickEnderChest()) {
+            return;
+        }
+        if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
+
+        switch (intent.action()) {
+            case ENDER_CHEST_INSERT -> handleEnderChestInsert(player, intent, cursorStack);
+            case ENDER_CHEST_PICKUP_INSERT -> handleEnderChestPickupInsert(player, intent, cursorStack);
+            case ENDER_CHEST_EXTRACT -> handleEnderChestExtract(player, intent, cursorStack);
+            default -> {
+            }
+        }
+    }
+
+    private static void handleEnderChestInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!NeoForgeQuickShulkerConfig.view().supportsBundlingInsert()) {
+            return;
+        }
+        if (!NeoForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
+            LOGGER.debug("Rejected NeoForge ender chest insert due to unsafe target slot: hostSlot={}", intent.hostSlot());
+            return;
+        }
+        ItemStack enderChestStack = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();
+        if (!isSingleEnderChest(enderChestStack)) {
+            LOGGER.debug("Rejected NeoForge ender chest insert because hovered slot is not a single ender chest: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack carried = resolvedCarried(player, cursorStack);
+        if (carried.isEmpty() || !canInsertIntoEnderChest(carried)) {
+            LOGGER.debug("Rejected NeoForge ender chest insert due to invalid carried stack: carried={}", describeStack(carried));
+            return;
+        }
+
+        ShulkerBundlingResult<List<ItemStack>, ItemStack> result = ENDER_CHEST_SERVICE.insert(player, carried);
+        if (!result.changed()) {
+            LOGGER.debug("Rejected NeoForge ender chest insert after service validation: failure={}, detail={}", result.failure(), result.detail());
+            return;
+        }
+        if (!isSingleEnderChest(NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()))) {
+            LOGGER.debug("Rejected NeoForge ender chest insert because hovered slot changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+        if (!carriedStillMatches(player, carried, null)) {
+            LOGGER.debug("Rejected NeoForge ender chest insert because carried stack changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack updatedCarried = result.updatedInputStack().orElseThrow().copy();
+        writeCarried(player, updatedCarried, null);
+        syncPlayerInventory(player);
+        syncCreativeCursor(player, updatedCarried);
+        finishCreativeServerCarriedAfterSync(player, intent, "ender_chest_insert");
+    }
+
+    private static void handleEnderChestPickupInsert(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!NeoForgeQuickShulkerConfig.view().supportsBundlingPickup()) {
+            return;
+        }
+        if (!NeoForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
+            LOGGER.debug("Rejected NeoForge ender chest pickup insert due to unsafe target slot: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack carried = resolvedCarried(player, cursorStack);
+        if (!isSingleEnderChest(carried)) {
+            LOGGER.debug("Rejected NeoForge ender chest pickup insert because carried stack is not a single ender chest: carried={}", describeStack(carried));
+            return;
+        }
+        ItemStack targetStack = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();
+        if (targetStack.isEmpty() || !canInsertIntoEnderChest(targetStack)) {
+            LOGGER.debug("Rejected NeoForge ender chest pickup insert due to invalid target stack: hostSlot={}, target={}",
+                intent.hostSlot(), describeStack(targetStack));
+            return;
+        }
+
+        ShulkerBundlingResult<List<ItemStack>, ItemStack> result = ENDER_CHEST_SERVICE.pickupInsert(player, targetStack);
+        if (!result.changed()) {
+            LOGGER.debug("Rejected NeoForge ender chest pickup insert after service validation: failure={}, detail={}", result.failure(), result.detail());
+            return;
+        }
+        ItemStack updatedTargetStack = result.updatedInputStack().orElseThrow().copy();
+        if (!ItemStack.matches(targetStack, NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()))) {
+            LOGGER.debug("Rejected NeoForge ender chest pickup insert because target slot changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+        if (!carriedStillMatches(player, carried, null)) {
+            LOGGER.debug("Rejected NeoForge ender chest pickup insert because carried stack changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+        if (!NeoForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), updatedTargetStack)) {
+            LOGGER.debug("Rejected NeoForge ender chest pickup insert due to unsafe target slot writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), updatedTargetStack);
+        syncPlayerInventory(player);
+        syncCreativeCursor(player, carried);
+        finishCreativeServerCarriedAfterSync(player, intent, "ender_chest_pickup_insert");
+    }
+
+    private static void handleEnderChestExtract(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
+        if (!NeoForgeQuickShulkerConfig.view().supportsBundlingExtract()) {
+            return;
+        }
+        if (isShulkerMenuContainerSlot(player, intent.hostSlot())) {
+            LOGGER.debug("Rejected NeoForge ender chest extract into shulker menu slot: hostSlot={}", intent.hostSlot());
+            return;
+        }
+        ItemStack targetStack = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();
+        if (!targetStack.isEmpty()) {
+            LOGGER.debug("Rejected NeoForge ender chest extract because target slot was not empty: hostSlot={}", intent.hostSlot());
+            return;
+        }
+
+        ItemStack carried = resolvedCarried(player, cursorStack);
+        if (!isSingleEnderChest(carried)) {
+            LOGGER.debug("Rejected NeoForge ender chest extract because carried stack is not a single ender chest: carried={}", describeStack(carried));
+            return;
+        }
+
+        ShulkerBundlingResult<List<ItemStack>, ItemStack> result =
+            EnderChestBundlingRules.extractFirstStackFromPlayerEnderChest(
+                ENDER_CHEST_ACCESS.readPlayerEnderChestContents(player),
+                ENDER_CHEST_ADAPTER
+            );
+        if (!result.changed() || result.updatedContainerStack().isEmpty() || result.extractedStack().isEmpty()) {
+            LOGGER.debug("Rejected NeoForge ender chest extract after service validation: failure={}, detail={}", result.failure(), result.detail());
+            return;
+        }
+        ItemStack extractedStack = result.extractedStack().orElseThrow().copy();
+        if (!NeoForgeHostSlotResolver.canSafelyReplace(player, intent.hostSlot(), extractedStack)) {
+            LOGGER.debug("Rejected NeoForge ender chest extract because target slot is unsafe for writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+        if (!NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()).isEmpty()) {
+            LOGGER.debug("Rejected NeoForge ender chest extract because target slot changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+        if (!carriedStillMatches(player, carried, null)) {
+            LOGGER.debug("Rejected NeoForge ender chest extract because carried stack changed before writeback: hostSlot={}", intent.hostSlot());
+            return;
+        }
+        ContentWriteResult writeResult = ENDER_CHEST_ACCESS.writePlayerEnderChestContents(
+            player,
+            result.updatedContainerStack().orElseThrow()
+        );
+        if (!writeResult.applied()) {
+            LOGGER.debug("Rejected NeoForge ender chest extract because ender chest writeback failed: detail={}", writeResult.detail());
+            return;
+        }
+
+        NeoForgeHostSlotResolver.set(player, intent.hostSlot(), extractedStack);
+        syncPlayerInventory(player);
+        syncCreativeCursor(player, carried);
+        finishCreativeServerCarriedAfterSync(player, intent, "ender_chest_extract");
+    }
+
     private static void syncPlayerInventory(ServerPlayer player) {
         player.getInventory().setChanged();
         player.containerMenu.broadcastChanges();
@@ -477,6 +660,29 @@ public final class NeoForgeShulkerBundlingHandler {
         return !stack.isEmpty() && stack.getCount() == 1 && isShulkerBox(stack);
     }
 
+    private static boolean isSingleEnderChest(ItemStack stack) {
+        return !stack.isEmpty() && stack.getCount() == 1 && stack.is(Items.ENDER_CHEST);
+    }
+
+    private static boolean isEnderChest(ItemStack stack) {
+        return !stack.isEmpty() && stack.is(Items.ENDER_CHEST);
+    }
+
+    private static boolean canInsertIntoEnderChest(ItemStack stack) {
+        return !stack.isEmpty() && !isEnderChest(stack);
+    }
+
+    private static boolean isEnderChestBundlingAction(ShulkerBundlingAction action) {
+        return action == ShulkerBundlingAction.ENDER_CHEST_INSERT
+            || action == ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT
+            || action == ShulkerBundlingAction.ENDER_CHEST_EXTRACT;
+    }
+
+    private static boolean isShulkerMenuContainerSlot(ServerPlayer player, HostSlotRef slotRef) {
+        return slotRef.scope() == HostStorageScope.PLAYER_CONTAINER_MENU
+            && player.containerMenu instanceof ShulkerBoxMenu;
+    }
+
     private static boolean isShulkerBox(ItemStack stack) {
         return !stack.isEmpty() && Block.byItem(stack.getItem()) instanceof ShulkerBoxBlock;
     }
@@ -601,5 +807,64 @@ public final class NeoForgeShulkerBundlingHandler {
     }
 
     private record ProcessedDragSlot(ShulkerBundlingAction action, HostSlotRef hostSlot) {
+    }
+
+    private static final class EnderChestItemStackAdapter implements EnderChestBundlingStackAdapter<ItemStack> {
+        @Override
+        public ItemStack empty() {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack copy(ItemStack stack) {
+            return stack.copy();
+        }
+
+        @Override
+        public ItemStack copyWithCount(ItemStack stack, int count) {
+            ItemStack copy = stack.copy();
+            copy.setCount(count);
+            return copy;
+        }
+
+        @Override
+        public boolean isEmpty(ItemStack stack) {
+            return stack.isEmpty();
+        }
+
+        @Override
+        public boolean isShulkerBox(ItemStack stack) {
+            return NeoForgeShulkerBundlingHandler.isShulkerBox(stack);
+        }
+
+        @Override
+        public boolean canInsertIntoShulker(ItemStack stack) {
+            return !stack.isEmpty() && stack.getItem().canFitInsideContainerItems() && !isShulkerBox(stack);
+        }
+
+        @Override
+        public boolean canStacksMerge(ItemStack existingStack, ItemStack incomingStack) {
+            return ItemStack.isSameItemSameComponents(existingStack, incomingStack);
+        }
+
+        @Override
+        public int getCount(ItemStack stack) {
+            return stack.getCount();
+        }
+
+        @Override
+        public int getMaxStackSize(ItemStack stack) {
+            return stack.getMaxStackSize();
+        }
+
+        @Override
+        public boolean isEnderChest(ItemStack stack) {
+            return NeoForgeShulkerBundlingHandler.isEnderChest(stack);
+        }
+
+        @Override
+        public boolean canInsertIntoEnderChest(ItemStack stack) {
+            return NeoForgeShulkerBundlingHandler.canInsertIntoEnderChest(stack);
+        }
     }
 }

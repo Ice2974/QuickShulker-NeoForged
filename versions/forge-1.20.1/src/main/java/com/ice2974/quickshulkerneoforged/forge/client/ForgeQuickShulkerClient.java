@@ -24,6 +24,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 import net.minecraftforge.api.distmarker.Dist;
@@ -332,6 +333,15 @@ public final class ForgeQuickShulkerClient {
 
         ItemStack carried = containerScreen.getMenu().getCarried();
         ItemStack hoveredStack = hoveredSlot.getItem();
+        Optional<ShulkerBundlingIntent> enderChestIntent = determineEnderChestBundlingIntent(
+            carried,
+            hoveredStack,
+            hostSlot.get()
+        );
+        if (enderChestIntent.isPresent()) {
+            return enderChestIntent;
+        }
+
         if (ForgeQuickShulkerConfig.view().supportsBundlingExtract()
             && hoveredStack.isEmpty()
             && isSingleShulkerBox(carried)) {
@@ -473,6 +483,11 @@ public final class ForgeQuickShulkerClient {
         ShulkerBundlingIntent intent
     ) {
         int containerId = containerScreen.getMenu().containerId;
+        if (isEnderChestBundlingAction(intent.action())) {
+            currentDragId = 0L;
+            dragContainerId = -1;
+            return new ShulkerBundlingIntent(intent.action(), intent.hostSlot(), containerId, 0L);
+        }
         if (intent.action() != ShulkerBundlingAction.PICKUP_INSERT
             && intent.action() != ShulkerBundlingAction.EXTRACT) {
             currentDragId = 0L;
@@ -604,6 +619,52 @@ public final class ForgeQuickShulkerClient {
 
     private static boolean isSingleShulkerBox(ItemStack stack) {
         return !stack.isEmpty() && stack.getCount() == 1 && isShulkerBox(stack);
+    }
+
+    private static Optional<ShulkerBundlingIntent> determineEnderChestBundlingIntent(
+        ItemStack carried,
+        ItemStack hoveredStack,
+        HostSlotRef hostSlot
+    ) {
+        if (!ForgeQuickShulkerConfig.view().quickEnderChest()) {
+            return Optional.empty();
+        }
+        if (ForgeQuickShulkerConfig.view().supportsBundlingExtract()
+            && hoveredStack.isEmpty()
+            && isSingleEnderChest(carried)) {
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.ENDER_CHEST_EXTRACT, hostSlot));
+        }
+        if (ForgeQuickShulkerConfig.view().supportsBundlingInsert()
+            && isSingleEnderChest(hoveredStack)
+            && !carried.isEmpty()
+            && canInsertIntoEnderChest(carried)) {
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.ENDER_CHEST_INSERT, hostSlot));
+        }
+        if (ForgeQuickShulkerConfig.view().supportsBundlingPickup()
+            && isSingleEnderChest(carried)
+            && !hoveredStack.isEmpty()
+            && canInsertIntoEnderChest(hoveredStack)) {
+            return Optional.of(new ShulkerBundlingIntent(ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT, hostSlot));
+        }
+        return Optional.empty();
+    }
+
+    private static boolean isEnderChestBundlingAction(ShulkerBundlingAction action) {
+        return action == ShulkerBundlingAction.ENDER_CHEST_INSERT
+            || action == ShulkerBundlingAction.ENDER_CHEST_PICKUP_INSERT
+            || action == ShulkerBundlingAction.ENDER_CHEST_EXTRACT;
+    }
+
+    private static boolean isSingleEnderChest(ItemStack stack) {
+        return !stack.isEmpty() && stack.getCount() == 1 && stack.is(Items.ENDER_CHEST);
+    }
+
+    private static boolean isEnderChest(ItemStack stack) {
+        return !stack.isEmpty() && stack.is(Items.ENDER_CHEST);
+    }
+
+    private static boolean canInsertIntoEnderChest(ItemStack stack) {
+        return !stack.isEmpty() && !isEnderChest(stack);
     }
 
     private static boolean isShulkerBox(ItemStack stack) {
