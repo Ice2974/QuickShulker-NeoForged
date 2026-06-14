@@ -392,6 +392,9 @@ public final class NeoForgeShulkerBundlingHandler {
         if (!NeoForgeQuickShulkerConfig.view().enderChestBundlingInsert()) {
             return;
         }
+        if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
         if (!NeoForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
             LOGGER.debug("Rejected NeoForge ender chest insert due to unsafe target slot: hostSlot={}", intent.hostSlot());
             return;
@@ -474,6 +477,9 @@ public final class NeoForgeShulkerBundlingHandler {
             return;
         }
         if (requireActionConfig && !NeoForgeQuickShulkerConfig.view().enderChestBundlingPickup()) {
+            return;
+        }
+        if (isCurrentQuickOpenHost(player, intent)) {
             return;
         }
         if (!NeoForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
@@ -566,6 +572,9 @@ public final class NeoForgeShulkerBundlingHandler {
         if (requireActionConfig && !NeoForgeQuickShulkerConfig.view().enderChestBundlingExtract()) {
             return;
         }
+        if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
         ItemStack targetStack = NeoForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();
         if (!targetStack.isEmpty()) {
             LOGGER.debug("Rejected NeoForge ender chest extract because target slot was not empty: hostSlot={}", intent.hostSlot());
@@ -648,7 +657,11 @@ public final class NeoForgeShulkerBundlingHandler {
             if (dragSession != null) {
                 dragSession.setCreativeCursor(copy);
             }
-            player.containerMenu.setCarried(copy);
+            // Creative mode keeps the authoritative carried in the QuickShulker drag
+            // session and pushes the updated stack to the client via syncCreativeCursor.
+            // Persisting it onto the server menu leaks the stack across menu
+            // close/reopen and reintroduces the creative shulker-box dupe
+            // (stage 3.5 intended this; stage 8.1 completes the removal).
             return;
         }
         player.containerMenu.setCarried(copy);

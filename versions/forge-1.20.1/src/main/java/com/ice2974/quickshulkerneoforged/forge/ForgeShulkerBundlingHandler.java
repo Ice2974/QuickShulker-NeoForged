@@ -416,6 +416,9 @@ public final class ForgeShulkerBundlingHandler {
         if (!ForgeQuickShulkerConfig.view().enderChestBundlingInsert()) {
             return;
         }
+        if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
         if (!ForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
             LOGGER.debug("Rejected Forge ender chest insert due to unsafe target slot: hostSlot={}", intent.hostSlot());
             return;
@@ -498,6 +501,9 @@ public final class ForgeShulkerBundlingHandler {
             return;
         }
         if (requireActionConfig && !ForgeQuickShulkerConfig.view().enderChestBundlingPickup()) {
+            return;
+        }
+        if (isCurrentQuickOpenHost(player, intent)) {
             return;
         }
         if (!ForgeHostSlotResolver.canSafelyReadAndShrink(player, intent.hostSlot())) {
@@ -590,6 +596,9 @@ public final class ForgeShulkerBundlingHandler {
         if (requireActionConfig && !ForgeQuickShulkerConfig.view().enderChestBundlingExtract()) {
             return;
         }
+        if (isCurrentQuickOpenHost(player, intent)) {
+            return;
+        }
         ItemStack targetStack = ForgeHostSlotResolver.resolve(player, intent.hostSlot()).copy();
         if (!targetStack.isEmpty()) {
             LOGGER.debug("Rejected Forge ender chest extract because target slot was not empty: hostSlot={}", intent.hostSlot());
@@ -672,7 +681,11 @@ public final class ForgeShulkerBundlingHandler {
             if (dragSession != null) {
                 dragSession.setCreativeCursor(copy);
             }
-            player.containerMenu.setCarried(copy);
+            // Creative mode keeps the authoritative carried in the QuickShulker drag
+            // session and pushes the updated stack to the client via syncCreativeCursor.
+            // Persisting it onto the server menu leaks the stack across menu
+            // close/reopen and reintroduces the creative shulker-box dupe
+            // (stage 3.5 intended this; stage 8.1 completes the removal).
             return;
         }
         player.containerMenu.setCarried(copy);
