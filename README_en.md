@@ -4,8 +4,6 @@
 
 QuickShulker NeoForged is an unofficial Forge / NeoForge port of `QuickShulker`, focused on bringing stable core quick-open behavior to modern Forge 1.20.1 and NeoForge 1.21.1 without drifting away from the original gameplay intent.
 
-Version `0.1.0` focuses on stable core quick-open features. It does not claim to be a full port of every upstream extended interaction yet.
-
 ## Supported Versions
 
 | Platform | Version | Status |

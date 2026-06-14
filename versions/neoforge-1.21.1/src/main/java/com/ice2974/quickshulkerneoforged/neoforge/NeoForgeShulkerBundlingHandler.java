@@ -679,18 +679,17 @@ public final class NeoForgeShulkerBundlingHandler {
 
     private static DragSession resolveDragSession(ServerPlayer player, ShulkerBundlingIntent intent, ItemStack cursorStack) {
         boolean enderChestDrag = isEnderChestDragAction(intent.action());
-        ItemStack currentCarried = player.getAbilities().instabuild
-            ? cursorStack.copy()
-            : player.containerMenu.getCarried().copy();
-        if (!isValidDragCarried(currentCarried, enderChestDrag)) {
-            LOGGER.debug("Rejected NeoForge mouse drag session due to invalid carried stack: action={}, hostSlot={}",
-                intent.action(), intent.hostSlot());
-            return null;
-        }
-
         long now = currentGameTime(player);
         DragSession session = DRAG_SESSIONS.get(player.getUUID());
         if (session == null || !session.matches(intent.containerId(), intent.dragId())) {
+            ItemStack initialCarried = player.getAbilities().instabuild
+                ? (cursorStack == null ? ItemStack.EMPTY : cursorStack.copy())
+                : player.containerMenu.getCarried().copy();
+            if (!isValidDragCarried(initialCarried, enderChestDrag)) {
+                LOGGER.debug("Rejected NeoForge mouse drag session due to invalid carried stack: action={}, hostSlot={}",
+                    intent.action(), intent.hostSlot());
+                return null;
+            }
             if (intent.action() == ShulkerBundlingAction.MOUSE_DRAG_PICKUP_INSERT
                 || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_EXTRACT
                 || intent.action() == ShulkerBundlingAction.MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT
@@ -702,6 +701,14 @@ public final class NeoForgeShulkerBundlingHandler {
             session = new DragSession(intent.containerId(), intent.dragId(), now);
             DRAG_SESSIONS.put(player.getUUID(), session);
             return session;
+        }
+        ItemStack currentCarried = player.getAbilities().instabuild
+            ? (session.hasCreativeCursor() ? session.creativeCursor() : (cursorStack == null ? ItemStack.EMPTY : cursorStack.copy()))
+            : player.containerMenu.getCarried().copy();
+        if (!isValidDragCarried(currentCarried, enderChestDrag)) {
+            LOGGER.debug("Rejected NeoForge mouse drag session due to invalid server carried stack: action={}, hostSlot={}",
+                intent.action(), intent.hostSlot());
+            return null;
         }
         session.refresh(now);
         return session;

@@ -1,4 +1,4 @@
-# Stage 1.0.0 P6.3 Bundling Config Page
+# Stage 1.0.0 P7 Bundling Config Page
 
 本阶段整理配置页面的 Quick Open / Bundling 显示与末影箱收纳配置门控。
 

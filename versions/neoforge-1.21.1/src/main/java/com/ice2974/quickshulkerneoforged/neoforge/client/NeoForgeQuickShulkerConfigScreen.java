@@ -75,7 +75,7 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
         switch (currentPage) {
             case ACTIVATION -> initActivationPage(left, right);
             case QUICK_OPEN -> initQuickOpenPage(left, right);
-            case SHULKER_BUNDLING -> initBundlingPage(left, right);
+            case BUNDLING -> initBundlingPage(left, right);
         }
 
         addFooter(left, right);
@@ -331,7 +331,7 @@ public final class NeoForgeQuickShulkerConfigScreen extends Screen {
     private enum ConfigPage {
         ACTIVATION("screen.quickshulker_neoforged.config.tab.activation", "screen.quickshulker_neoforged.config.section.activation"),
         QUICK_OPEN("screen.quickshulker_neoforged.config.tab.quick_open", "screen.quickshulker_neoforged.config.section.quick_open"),
-        SHULKER_BUNDLING("screen.quickshulker_neoforged.config.tab.bundling", "screen.quickshulker_neoforged.config.section.bundling");
+        BUNDLING("screen.quickshulker_neoforged.config.tab.bundling", "screen.quickshulker_neoforged.config.section.bundling");
 
         private final String tabKey;
         private final String titleKey;

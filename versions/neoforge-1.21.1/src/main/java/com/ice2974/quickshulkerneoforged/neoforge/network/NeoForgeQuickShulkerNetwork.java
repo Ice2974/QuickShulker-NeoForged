@@ -47,32 +47,32 @@ public final class NeoForgeQuickShulkerNetwork {
         event.registrar(PROTOCOL_VERSION).playToClient(
             NeoForgeEnderChestFullSyncPayload.TYPE,
             NeoForgeEnderChestFullSyncPayload.STREAM_CODEC,
-            (payload, context) -> invokeClientHandler(
+            (payload, context) -> context.enqueueWork(() -> invokeClientHandler(
                 "applyEnderChestFullSync",
                 new Class<?>[]{String.class, List.class},
                 payload.sessionId(),
                 payload.stacks()
-            )
+            ))
         );
         event.registrar(PROTOCOL_VERSION).playToClient(
             NeoForgeEnderChestSlotSyncPayload.TYPE,
             NeoForgeEnderChestSlotSyncPayload.STREAM_CODEC,
-            (payload, context) -> invokeClientHandler(
+            (payload, context) -> context.enqueueWork(() -> invokeClientHandler(
                 "applyEnderChestSlotSync",
                 new Class<?>[]{String.class, int.class, ItemStack.class},
                 payload.sessionId(),
                 payload.slotIndex(),
                 payload.stack()
-            )
+            ))
         );
         event.registrar(PROTOCOL_VERSION).playToClient(
             NeoForgeCreativeCursorSyncPayload.TYPE,
             NeoForgeCreativeCursorSyncPayload.STREAM_CODEC,
-            (payload, context) -> invokeClientHandler(
+            (payload, context) -> context.enqueueWork(() -> invokeClientHandler(
                 "applyCreativeCursorSync",
                 new Class<?>[]{ItemStack.class},
                 payload.stack()
-            )
+            ))
         );
     }
 
