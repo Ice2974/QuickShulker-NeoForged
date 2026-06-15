@@ -23,6 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
+import com.ice2974.quickshulkerneoforged.forge.network.ForgeQuickShulkerNetwork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +42,7 @@ public final class ForgeShulkerSessionManager {
         // already been kept in sync by writeCarried, so clearing the drag session here
         // only discards the QuickShulker-internal creative cursor cache.
         ForgeShulkerBundlingHandler.clearDragSession(player);
+        clearStaleCreativeCarriedBeforeOpen(player);
         ActiveSession existingSession = sessions.get(player.getUUID());
         if (existingSession != null) {
             if (sameHost(existingSession.hostItem(), hostItemReference)) {
@@ -312,6 +314,46 @@ public final class ForgeShulkerSessionManager {
             return null;
         }
         return ActiveSession.forTransient(openSession, hostItemReference, holder[0], CloseReason.PLAYER_CLOSED);
+    }
+
+
+    /**
+     * In creative mode the server-side {@code containerMenu.carried} can become
+     * desynchronised from the client-side cursor after vanilla creative inventory
+     * operations (pick-up from creative tab, quick drop, repeated open/close).
+     * When a quick-open menu is opened via {@code player.openMenu()}, the vanilla
+     * {@code closeContainer()} path does not return or clear this carried stack
+     * because {@code InventoryMenu.removed()} is a no-op. The stale carried value
+     * can then resurface later (e.g. when the quick-open menu closes and the
+     * inventory menu is restored), duplicating the last picked-up item.
+     *
+     * <p>This method clears the server-side carried stack <em>only in creative
+     * mode</em> and <em>only when the current menu is not already a quick-open
+     * menu</em> (quick-open to quick-open host switching is handled by the normal
+     * session finish path). The client is notified so its cursor stays in sync.
+     * Creative items are effectively infinite, so clearing the carried stack
+     * here cannot cause real item loss — it matches the vanilla behaviour of
+     * destroying the cursor item when the creative inventory screen closes.
+     */
+    private void clearStaleCreativeCarriedBeforeOpen(ServerPlayer player) {
+        if (!player.getAbilities().instabuild) {
+            return;
+        }
+        if (player.containerMenu instanceof ForgeQuickOpenMenu) {
+            return;
+        }
+        ItemStack carried = player.containerMenu.getCarried();
+        if (carried.isEmpty()) {
+            return;
+        }
+        LOGGER.debug(
+            "Clearing stale creative carried before quick-open: player={}, carried={}x {}",
+            player.getScoreboardName(),
+            carried.getCount(),
+            carried.getItem()
+        );
+        player.containerMenu.setCarried(ItemStack.EMPTY);
+        ForgeQuickShulkerNetwork.sendCreativeCursorSync(player, ItemStack.EMPTY);
     }
 
     private static OpenSession createOpenSession(
