@@ -48,10 +48,12 @@
 7. **缺少 release-1.0.0.md 发布文档（Qwen P3）**
    - 修复：新建 `docs/releases/release-1.0.0.md`，补齐 1.0.0 支持范围、末影箱 / 潜影盒 bundling、mouse dragged、明确不包含的功能与最终人工测试清单。
 
-### 确认存在，发布后优化
+### 确认存在，已修复（补充）
 
-1. **ENDER_CHEST_INSERT 在主 switch 为死代码（Kimi P3）**
-   - `ENDER_CHEST_INSERT` 被前置安全拦截提前 return，主 switch 中的 case 永远不会走到。不影响功能，仅为代码清洁问题。未修复，留待后续版本清理。
+8. **ENDER_CHEST_INSERT 在主 switch 为死代码（Kimi P3）**
+   - 问题：`ENDER_CHEST_INSERT` 被前置 ender-chest 安全拦截（`isEnderChestBundlingAction && !isEnderChestDragAction`）提前 return，主 switch 中的 case 永远不会走到。原来与 `ENDER_CHEST_PICKUP_INSERT`、`ENDER_CHEST_EXTRACT` 合在同一个 case 中，使得该 case 同时覆盖可达与不可达的 action。
+   - 修复：将 `ENDER_CHEST_INSERT` 从分组 case 中拆出，单独列为空 no-op case 并加注释说明其不可达，保留它以维持 switch 穷尽性。`ENDER_CHEST_PICKUP_INSERT` 和 `ENDER_CHEST_EXTRACT` 仍然调用 `handleEnderChestBundling(player, intent, cursorStack, dragSession)`。
+   - 涉及文件：`ForgeShulkerBundlingHandler.java`、`NeoForgeShulkerBundlingHandler.java`
 
 ### 误报
 

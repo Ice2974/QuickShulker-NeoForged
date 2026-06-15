@@ -89,7 +89,12 @@ public final class NeoForgeShulkerBundlingHandler {
             case END_MOUSE_DRAG -> {
             }
             case TRANSFER -> handleTransfer(player, intent, cursorStack);
-            case ENDER_CHEST_INSERT, ENDER_CHEST_PICKUP_INSERT, ENDER_CHEST_EXTRACT -> handleEnderChestBundling(player, intent, cursorStack, dragSession);
+            // ENDER_CHEST_INSERT is handled by the early ender-chest guard above and never reaches this switch.
+            // It is listed separately to document that it is intentionally unreachable here, while keeping the
+            // switch exhaustive for the other two drag-session ender-chest actions below.
+            case ENDER_CHEST_INSERT -> {
+            }
+            case ENDER_CHEST_PICKUP_INSERT, ENDER_CHEST_EXTRACT -> handleEnderChestBundling(player, intent, cursorStack, dragSession);
             case MOUSE_DRAG_ENDER_CHEST_PICKUP_INSERT -> handleMouseDragEnderChestPickupInsert(player, intent, cursorStack, dragSession);
             case MOUSE_DRAG_ENDER_CHEST_EXTRACT -> handleMouseDragEnderChestExtract(player, intent, cursorStack, dragSession);
             case UNKNOWN -> LOGGER.debug("Rejected NeoForge bundling intent with unknown action: hostSlot={}", intent.hostSlot());
