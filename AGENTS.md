@@ -393,6 +393,8 @@ UI 调整原则：
 
 * `AGENTS.md`
 * `LICENSE`
+* `README.md`
+* `README_en.md`
 * `THIRD_PARTY_NOTICES.md`
 * `.gitignore`
 * `references/` 目录内容
