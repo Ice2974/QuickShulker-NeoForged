@@ -681,16 +681,29 @@ public final class ForgeShulkerBundlingHandler {
             if (dragSession != null) {
                 dragSession.setCreativeCursor(copy);
             }
-            // Creative mode must keep the server-side containerMenu.carried in sync with
-            // the value pushed to the client via syncCreativeCursor. If the server carried
-            // is left stale (e.g. still holding a stack the player picked up via vanilla
-            // left-click before a bundling INSERT), the vanilla
-            // AbstractContainerMenu.removed() path will place that stale stack back into
-            // the player inventory on menu close, duplicating an item that was already
-            // inserted into the container. Writing the updated carried here ensures
-            // removed() returns the correct post-bundling value (usually empty for INSERT,
-            // or the remaining/retrieved stack for other actions).
-            player.containerMenu.setCarried(copy);
+            // Creative mode carried handling has two cases:
+            //
+            // 1. The carried stack was picked up via vanilla left-click from the player
+            //    inventory (server containerMenu.carried is non-empty before this call).
+            //    We must keep the server-side carried in sync so that
+            //    AbstractContainerMenu.removed() returns the correct post-bundling value
+            //    (e.g. empty after INSERT, remaining stack after EXTRACT). Without this,
+            //    removed() would place the stale pre-bundling stack back into inventory,
+            //    duplicating an item that was already inserted (stage 8.2 fix).
+            //
+            // 2. The carried stack was picked up from the creative item list (e.g. a
+            //    non-inventory creative tab). In this case the server
+            //    containerMenu.carried is EMPTY before this call because creative-list
+            //    pickups are handled client-side without a standard container click.
+            //    Writing the bundling result into the server carried would cause
+            //    removed() to placeItemBackInInventory a stack that was never actually
+            //    taken from the player inventory, duplicating a real item (stage 8.3 fix).
+            //    We skip the server write in this case; the client stays in sync via
+            //    syncCreativeCursor, and removed() sees an empty carried.
+            ItemStack serverCarriedBefore = player.containerMenu.getCarried();
+            if (!serverCarriedBefore.isEmpty() || copy.isEmpty()) {
+                player.containerMenu.setCarried(copy);
+            }
             return;
         }
         player.containerMenu.setCarried(copy);

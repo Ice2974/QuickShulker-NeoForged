@@ -1,4 +1,4 @@
-﻿# QuickShulker NeoForged 1.0.0 发布整理
+# QuickShulker NeoForged 1.0.0 发布整理
 
 ## 版本定位
 
@@ -104,7 +104,7 @@
 15. 创造模式末彐箱 bundling
 16. 配置关闭后对应 bundling 不触发
 17. 原版容器界面进入 quick-open 后关闭，不会自动回背包
-18. 复制 bug 复现路径回归（含 P8.1：创造模式 bundling 后关 / 重开背包不复制潜影盒 / 末影箱；末影箱拖拽不能对当前 QuickShulker 宿主槽位 bundling；P8.2：创造模式潜影盒 / 末影箱 bundling 后不关背包直接切换 quick-open 页面，再执行容器插入，关闭后不复制）
+18. 复制 bug 复现路径回归（含 P8.1：创造模式 bundling 后关 / 重开背包不复制潜影盒 / 末影箱；末影箱拖拽不能对当前 QuickShulker 宿主槽位 bundling；P8.2：创造模式潜影盒 / 末影箱 bundling 后不关背包直接切换 quick-open 页面，再执行容器插入，关闭后不复制；P8.3：创造模式从创造物品列表拿起潜影盒做 bundling 后切换 quick-open，在 quick-open 内对潜影盒重复 bundling 操作，关闭背包重开不复制潜影盒）
 19. 双人专用服务器末彐箱不串箱
 20. 双人专用服务器 bundling 只影响本人
 
