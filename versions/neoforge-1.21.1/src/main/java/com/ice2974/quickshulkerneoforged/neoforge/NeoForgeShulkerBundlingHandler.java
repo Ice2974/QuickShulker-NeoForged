@@ -657,11 +657,16 @@ public final class NeoForgeShulkerBundlingHandler {
             if (dragSession != null) {
                 dragSession.setCreativeCursor(copy);
             }
-            // Creative mode keeps the authoritative carried in the QuickShulker drag
-            // session and pushes the updated stack to the client via syncCreativeCursor.
-            // Persisting it onto the server menu leaks the stack across menu
-            // close/reopen and reintroduces the creative shulker-box dupe
-            // (stage 3.5 intended this; stage 8.1 completes the removal).
+            // Creative mode must keep the server-side containerMenu.carried in sync with
+            // the value pushed to the client via syncCreativeCursor. If the server carried
+            // is left stale (e.g. still holding a stack the player picked up via vanilla
+            // left-click before a bundling INSERT), the vanilla
+            // AbstractContainerMenu.removed() path will place that stale stack back into
+            // the player inventory on menu close, duplicating an item that was already
+            // inserted into the container. Writing the updated carried here ensures
+            // removed() returns the correct post-bundling value (usually empty for INSERT,
+            // or the remaining/retrieved stack for other actions).
+            player.containerMenu.setCarried(copy);
             return;
         }
         player.containerMenu.setCarried(copy);

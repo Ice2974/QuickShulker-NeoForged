@@ -34,6 +34,13 @@ public final class ForgeShulkerSessionManager {
     private final Map<UUID, ActiveSession> sessions = new ConcurrentHashMap<>();
 
     public void open(ServerPlayer player, HostItemReference hostItemReference, QuickOpenTrigger trigger) {
+        // Clear any active bundling drag session before opening a quick-open menu. This
+        // prevents stale creative cursor state from a prior bundling operation (e.g. a
+        // shulker/ender-chest extract performed in the inventory screen) from leaking
+        // into the new quick-open menu. The server-side containerMenu.carried has
+        // already been kept in sync by writeCarried, so clearing the drag session here
+        // only discards the QuickShulker-internal creative cursor cache.
+        ForgeShulkerBundlingHandler.clearDragSession(player);
         ActiveSession existingSession = sessions.get(player.getUUID());
         if (existingSession != null) {
             if (sameHost(existingSession.hostItem(), hostItemReference)) {
